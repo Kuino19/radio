@@ -1,0 +1,18 @@
+# Add/replace this in your /etc/caddy/Caddyfile on the Ubuntu VM:
+
+radio.goanitech.com {
+    # 1. API routes -> Node backend on port 3001
+    handle /api/* {
+        reverse_proxy localhost:3001
+    }
+
+    # 2. WebSocket stream upload -> Node backend on port 3001
+    handle /ws* {
+        reverse_proxy localhost:3001
+    }
+
+    # 3. Stream playback & Icecast mounts -> Icecast 2.4.x on port 8000
+    handle {
+        reverse_proxy localhost:8000
+    }
+}

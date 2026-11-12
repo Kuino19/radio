@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@layer theme {
+  :root {
+    --font-display: var(--font-display), "Bricolage Grotesque", -apple-system, sans-serif;
+    --font-sans: var(--font-sans), "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: var(--font-mono), "JetBrains Mono", monospace;
+  }
+}
+
+:root {
+  /* Warm dark radio dial palette (default) */
+  --bg: #0E0D0C;
+  --surface: #1A1816;
+  --surface-hover: #24211D;
+  --border: #2A2724;
+  --text: #F4EFE8;
+  --muted: #A39B91;
+  --live: #FF4A3D; /* STRICT: Live badge, GO LIVE button, on-air states ONLY */
+  --accent: #F2B544; /* Warm amber: links, highlights, charts, follow button */
+  --ok: #3DBE7A; /* Success, connected mic meter */
+  color-scheme: dark;
+}
+
+[data-theme="light"], .light {
+  --bg: #FAF6F0;
+  --surface: #FFFFFF;
+  --surface-hover: #F2EDE4;
+  --border: #E6DFD5;
+  --text: #1C1917;
+  --muted: #78716C;
+  --live: #E03527;
+  --accent: #D99518;
+  --ok: #2E9E62;
+  color-scheme: light;
+}
+
+html {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Warm Radio Dial Waveform animation */
+@keyframes radio-bar {
+  0%, 100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-radio-bar {
+  animation: radio-bar 1.2s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+/* Concentric on-air pulse */
+@keyframes on-air-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+.animate-on-air-ring {
+  animation: on-air-ring 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-radio-bar,
+  .animate-on-air-ring,
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
+}
