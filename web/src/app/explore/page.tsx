@@ -22,14 +22,13 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   let channelsQuery = supabase
     .from('channels')
     .select('*')
-    .eq('is_suspended', false)
 
   if (queryTerm) {
     channelsQuery = channelsQuery.or(`name.ilike.%${queryTerm}%,description.ilike.%${queryTerm}%`)
   }
 
   const { data: channelData } = await channelsQuery.limit(12)
-  const channels: Channel[] = channelData || []
+  const channels: Channel[] = (channelData || []).filter((c) => c.is_suspended !== true)
 
   // 2. Fetch series matching search or category
   let seriesQuery = supabase.from('series').select('*')

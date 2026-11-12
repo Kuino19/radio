@@ -24,20 +24,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   // 1. Fetch live channels
-  const { data: liveChannels } = await supabase
+  const { data: rawLiveChannels } = await supabase
     .from('channels')
     .select('*')
     .eq('is_live', true)
-    .eq('is_suspended', false)
     .order('current_listeners', { ascending: false })
 
   // 2. Fetch recent channels
-  const { data: recentChannels } = await supabase
+  const { data: rawRecentChannels } = await supabase
     .from('channels')
     .select('*')
-    .eq('is_suspended', false)
     .order('created_at', { ascending: false })
     .limit(6)
+
+  const liveChannels = (rawLiveChannels || []).filter((c) => c.is_suspended !== true)
+  const recentChannels = (rawRecentChannels || []).filter((c) => c.is_suspended !== true)
 
   // 3. Fetch upcoming scheduled shows
   const { data: upcomingData } = await supabase

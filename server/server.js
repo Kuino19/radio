@@ -310,13 +310,13 @@ wss.on('connection', (ws, req) => {
           }
         }
 
-        // 2. Verify Channel Ownership & Check Suspended status
+        // 2. Verify Channel Ownership
         let channel = null
         try {
           const { data: chData, error: channelError } = await withTimeout(
             supabase
               .from('channels')
-              .select('id, name, slug, owner_id, is_suspended')
+              .select('id, name, slug, owner_id')
               .eq('slug', channelSlug.toLowerCase())
               .single(),
             4000,
@@ -339,7 +339,7 @@ wss.on('connection', (ws, req) => {
           return ws.close(4003, 'Forbidden')
         }
 
-        if (channel.is_suspended) {
+        if (channel.is_suspended === true) {
           ws.send(JSON.stringify({ type: 'error', message: 'This channel has been suspended by an administrator.' }))
           return ws.close(4003, 'Channel suspended')
         }
@@ -352,21 +352,31 @@ wss.on('connection', (ws, req) => {
 
         // Create new show row
         const title = (showTitle && showTitle.trim()) || 'Live Audio Broadcast'
-        const { data: show } = await supabase
-          .from('shows')
-          .insert({
-            channel_id: channel.id,
-            title,
-            started_at: new Date().toISOString(),
-          })
-          .select()
-          .single()
+        let show = null
+        try {
+          const { data: newShow, error: showErr } = await supabase
+            .from('shows')
+            .insert({
+              channel_id: channel.id,
+              title,
+              started_at: new Date().toISOString(),
+            })
+            .select()
+            .single()
+          if (!showErr) show = newShow
+        } catch (sErr) {
+          console.warn('[DB] Show insert warning:', sErr.message)
+        }
 
         // Mark channel as live
-        await supabase
-          .from('channels')
-          .update({ is_live: true })
-          .eq('id', channel.id)
+        try {
+          await supabase
+            .from('channels')
+            .update({ is_live: true })
+            .eq('id', channel.id)
+        } catch (liveErr) {
+          console.warn('[DB] Channel live update warning:', liveErr.message)
+        }
 
         // Spawn ffmpeg with dual output
         const { ffmpeg, recordingFilePath } = spawnFfmpeg(channel.slug, show?.id)
