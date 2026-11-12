@@ -447,17 +447,6 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const selectedDevice = audioDevices.find((d) => d.deviceId === selectedDeviceId)
   const currentMicName = selectedDevice?.label || 'Microphone: Headset (USB)'
 
-  // Mock sample listeners list matching PDF Page 2 & 4
-  const mockListeners = [
-    { initials: 'AO', name: 'Ada O.', isGuest: false },
-    { initials: 'T', name: 'Tunde', isGuest: true },
-    { initials: 'GM', name: 'Grace M.', isGuest: false },
-    { initials: 'E', name: 'Emeka', isGuest: true },
-    { initials: 'FA', name: 'Funke A.', isGuest: false },
-  ]
-
-  const displayListenerCount = Math.max(currentListeners, 128)
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 space-y-6">
       {/* 2-Column Console Layout (Matching PDF Page 2 on Mobile, Page 4 on Desktop) */}
@@ -577,14 +566,14 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
               <div className="rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-3 sm:p-4">
                 <span className="text-[11px] text-[#A39B91] block">Listening now</span>
                 <span className="font-mono text-xl sm:text-2xl font-bold text-[#F2B544] mt-0.5 block">
-                  {studioState === 'on_air' ? displayListenerCount : 0}
+                  {studioState === 'on_air' ? currentListeners : 0}
                 </span>
               </div>
 
               <div className="rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-3 sm:p-4">
                 <span className="text-[11px] text-[#A39B91] block">Peak so far</span>
                 <span className="font-mono text-xl sm:text-2xl font-bold text-[#F4EFE8] mt-0.5 block">
-                  {studioState === 'on_air' ? Math.max(peakListeners, 142) : 0}
+                  {studioState === 'on_air' ? peakListeners : 0}
                 </span>
               </div>
 
@@ -689,7 +678,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
 
         {/* Right Column: Listeners List & Live Chat (PDF Page 4) */}
         <div className="space-y-6">
-          {/* Listeners Card (PDF Page 4) */}
+          {/* Listeners Card (Real Audience) */}
           <div className="rounded-3xl border border-[#2A2724] bg-[#1A1816] p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-[#2A2724] pb-3">
               <h3 className="font-display font-bold text-base text-[#F4EFE8] flex items-center gap-2">
@@ -697,31 +686,46 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                 <span>Listeners</span>
               </h3>
               <span className="font-mono text-xs font-bold text-[#F2B544]">
-                {studioState === 'on_air' ? displayListenerCount : 0}
+                {studioState === 'on_air' ? currentListeners : 0}
               </span>
             </div>
 
-            {/* Listener Avatars List */}
-            <div className="space-y-3">
-              {mockListeners.map((listener, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs">
+            {/* Listener State */}
+            {studioState === 'on_air' && currentListeners > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs p-3 rounded-2xl bg-[#0E0D0C] border border-[#2A2724]">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center font-mono font-bold text-xs text-[#F4EFE8]">
-                      {listener.initials}
+                    <div className="w-8 h-8 rounded-full bg-[#1A1816] border border-[#2A2724] flex items-center justify-center font-mono font-bold text-xs text-[#F2B544]">
+                      <Users className="w-4 h-4" />
                     </div>
-                    <span className="text-[#F4EFE8] font-medium">{listener.name}</span>
+                    <div>
+                      <span className="text-[#F4EFE8] font-medium block">Audience Online</span>
+                      <span className="text-[10px] text-[#A39B91]">Connected to live audio</span>
+                    </div>
                   </div>
-                  {listener.isGuest && (
-                    <span className="text-[10px] font-mono text-[#F2B544] border border-[#F2B544]/30 bg-[#F2B544]/10 rounded-full px-2 py-0.5">
-                      guest
-                    </span>
-                  )}
+                  <span className="text-[10px] font-mono text-[#3DBE7A] border border-[#3DBE7A]/30 bg-[#3DBE7A]/10 rounded-full px-2 py-0.5">
+                    active
+                  </span>
                 </div>
-              ))}
-              <p className="text-[11px] font-mono text-[#A39B91] pt-1">
-                +123 more
-              </p>
-            </div>
+                <p className="text-[11px] font-mono text-[#A39B91] pt-1">
+                  {currentListeners} {currentListeners === 1 ? 'person is' : 'people are'} listening right now
+                </p>
+              </div>
+            ) : (
+              <div className="py-6 text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center mx-auto text-[#A39B91]">
+                  <Users className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-semibold text-[#F4EFE8]">
+                  No active listeners yet
+                </p>
+                <p className="text-[11px] text-[#A39B91] max-w-xs mx-auto">
+                  {studioState === 'on_air'
+                    ? 'Listeners will appear here as they connect to your live stream.'
+                    : 'Go live and share your station link to start broadcasting.'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Real-time Interactive Chat */}

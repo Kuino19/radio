@@ -260,7 +260,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
                     </span>
 
                     <Link
-                      href={ep.channels ? `/c/${ep.channels.slug}` : '/c/live-test'}
+                      href={ep.channels ? `/c/${ep.channels.slug}` : '/explore'}
                       className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] border border-[#2A2724] px-3.5 py-1.5 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544] hover:text-[#F2B544] transition-colors"
                     >
                       <Play className="w-3.5 h-3.5 fill-current text-[#F2B544]" />
