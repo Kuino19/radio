@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LiveChat } from '@/components/LiveChat'
 import { ScheduleShowModal } from '@/components/ScheduleShowModal'
+import { SocialShareModal } from '@/components/SocialShareModal'
 import {
   Mic,
   MicOff,
   Radio,
   Share2,
   Check,
+  Copy,
   AlertTriangle,
   AlertCircle,
   RotateCcw,
@@ -50,6 +52,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const [peakListeners, setPeakListeners] = useState(channel.current_listeners || 0)
   const [newFollowers, setNewFollowers] = useState(0)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   // Hardware and Network references
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -507,8 +510,18 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                 <p className="text-xs text-[#A39B91]">Your channel</p>
               </div>
 
-              {/* Status Badge: Strict Red ONLY for ON AIR */}
-              <div>
+              {/* Status Badge & Share Action */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#2A2724] bg-[#0E0D0C] px-3.5 py-1 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544] hover:text-[#F2B544] transition-all shadow-sm"
+                  title="Share listener link"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-[#F2B544]" />
+                  <span>Share</span>
+                </button>
+
                 {studioState === 'on_air' && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] px-3.5 py-1 text-xs font-black tracking-wider text-[#FF4A3D] border border-[#FF4A3D]/40 shadow-sm animate-pulse">
                     <span className="w-2 h-2 rounded-full bg-[#FF4A3D]" />
@@ -572,6 +585,48 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                   {showTitle.trim() || `${channel.name} Live Broadcast`}
                 </p>
               )}
+            </div>
+
+            {/* Direct Station Share Link Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0E0D0C] border border-[#2A2724]">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[11px] font-mono text-[#A39B91] uppercase tracking-wider shrink-0">
+                  Station Link:
+                </span>
+                <span className="font-mono text-xs text-[#F2B544] truncate select-all">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/c/${channel.slug}` : `lisnr.goanitech.com/c/${channel.slug}`}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#2A2724] bg-[#1A1816] px-3.5 py-1.5 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544] transition-colors"
+                  title="Copy station link"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-[#3DBE7A]" />
+                      <span className="text-[#3DBE7A]">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#A39B91]" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#F2B544] px-4 py-1.5 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all shadow-md"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Share</span>
+                </button>
+              </div>
             </div>
 
             {/* THE HERO: Giant Circular Broadcast Dial (Matching PDF Page 2 & 4) */}
@@ -783,6 +838,16 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                     ? 'Listeners will appear here as they connect to your live stream.'
                     : 'Go live and share your station link to start broadcasting.'}
                 </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowShareModal(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#F2B544] px-4 py-2 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all shadow-md"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share Station Link</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -799,6 +864,15 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
           </div>
         </div>
       </div>
+
+      {/* Social Share Modal */}
+      <SocialShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title={showTitle.trim() || `${channel.name} Live Broadcast`}
+        url={typeof window !== 'undefined' ? `${window.location.origin}/c/${channel.slug}` : `https://lisnr.goanitech.com/c/${channel.slug}`}
+        subtitle={`Live audio streaming on ${channel.name}`}
+      />
     </div>
   )
 }
