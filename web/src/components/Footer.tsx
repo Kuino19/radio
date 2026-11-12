@@ -6,8 +6,8 @@ import Link from 'next/link'
 export function Footer() {
   const pathname = usePathname()
 
-  // Suppress footer in creator dashboard & studio so it stays a clean full-height app
-  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/studio')) {
+  // Suppress footer in creator dashboard, studio & embed pages so it stays a clean full-height app
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/studio') || pathname?.startsWith('/embed')) {
     return null
   }
 

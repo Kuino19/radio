@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Check, Copy, Share2 } from 'lucide-react'
+import { X, Check, Copy, Share2, Code2 } from 'lucide-react'
 
 interface SocialShareModalProps {
   isOpen: boolean
@@ -19,8 +19,16 @@ export function SocialShareModal({
   subtitle = 'Live speech & audio broadcast on LISNR',
 }: SocialShareModalProps) {
   const [copied, setCopied] = useState(false)
+  const [copiedEmbed, setCopiedEmbed] = useState(false)
 
   if (!isOpen) return null
+
+  // Extract channel slug from url (e.g. https://.../c/fgc-isheri -> fgc-isheri)
+  const slugMatch = url.match(/\/c\/([a-zA-Z0-9_-]+)/)
+  const channelSlug = slugMatch ? slugMatch[1] : ''
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://lisnr.goanitech.com'
+  const embedUrl = channelSlug ? `${baseUrl}/embed/${channelSlug}` : `${url}`
+  const embedCode = `<iframe src="${embedUrl}" width="100%" height="160" frameborder="0" allow="autoplay"></iframe>`
 
   const encodedUrl = encodeURIComponent(url)
   const shareText = `Listening to "${title}" on LISNR. Tune in live:`
@@ -36,6 +44,16 @@ export function SocialShareModal({
       await navigator.clipboard.writeText(url)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback
+    }
+  }
+
+  const handleCopyEmbed = async () => {
+    try {
+      await navigator.clipboard.writeText(embedCode)
+      setCopiedEmbed(true)
+      setTimeout(() => setCopiedEmbed(false), 2000)
     } catch {
       // Fallback
     }
@@ -135,13 +153,36 @@ export function SocialShareModal({
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#F2B544] px-3.5 py-2 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all shrink-0"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#F2B544] px-3.5 py-2 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all shrink-0 cursor-pointer"
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
         </div>
+
+        {/* Embed Player Widget Generator */}
+        {channelSlug && (
+          <div className="space-y-2 pt-2 border-t border-[#2A2724]">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[#A39B91]">Embed Player on Website</label>
+              <span className="text-[10px] text-[#F2B544] font-mono">HTML iframe</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-1.5 pl-3">
+              <span className="text-[11px] font-mono text-[#A39B91] truncate flex-1 select-all">
+                {embedCode}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyEmbed}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#1A1816] border border-[#2A2724] px-3 py-2 text-xs font-bold text-[#F4EFE8] hover:border-[#F2B544] active:scale-95 transition-all shrink-0 cursor-pointer"
+              >
+                {copiedEmbed ? <Check className="h-3.5 w-3.5 text-[#3DBE7A]" /> : <Code2 className="h-3.5 w-3.5 text-[#F2B544]" />}
+                <span>{copiedEmbed ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Native mobile share if supported */}
         {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (

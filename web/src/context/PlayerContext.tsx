@@ -111,15 +111,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentTrack.channelName,
-        artist: currentTrack.hostName || 'LISNR Host',
-        album: currentTrack.isLive ? 'LISNR Live Radio' : 'LISNR On-Demand',
+        artist: currentTrack.hostName ? `${currentTrack.hostName} · LISNR` : 'LISNR Live Audio',
+        album: currentTrack.isLive ? 'Live Speech Transmission' : 'Archived Broadcast Replay',
         artwork: currentTrack.coverUrl
           ? [
               { src: currentTrack.coverUrl, sizes: '96x96', type: 'image/jpeg' },
               { src: currentTrack.coverUrl, sizes: '192x192', type: 'image/jpeg' },
               { src: currentTrack.coverUrl, sizes: '512x512', type: 'image/jpeg' },
             ]
-          : [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
+          : [
+              { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' },
+              { src: '/logo.svg', sizes: '512x512', type: 'image/svg+xml' },
+            ],
       })
 
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
@@ -132,6 +135,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       })
 
       navigator.mediaSession.setActionHandler('pause', () => {
+        if (audioRef.current) {
+          audioRef.current.pause()
+          setIsPlaying(false)
+        }
+      })
+
+      navigator.mediaSession.setActionHandler('stop', () => {
         if (audioRef.current) {
           audioRef.current.pause()
           setIsPlaying(false)

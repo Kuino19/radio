@@ -1,0 +1,20 @@
+{
+  "name": "LISNR — Live Audio Broadcasts",
+  "short_name": "LISNR",
+  "description": "Speech-first live audio platform for sermons, talk shows, and podcasts.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0E0D0C",
+  "theme_color": "#0E0D0C",
+  "orientation": "portrait-primary",
+  "categories": ["entertainment", "music", "news", "education"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

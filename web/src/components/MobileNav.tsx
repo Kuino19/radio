@@ -7,8 +7,12 @@ import { Home, Radio, User, Bookmark } from 'lucide-react'
 export function MobileNav() {
   const pathname = usePathname()
 
-  // Don't show mobile nav inside the broadcast studio to keep the screen focused on on-air controls
-  if (pathname.startsWith('/studio/')) {
+  // Don't show mobile nav inside the broadcast studio, dashboard or embed to keep screen focused
+  if (
+    pathname.startsWith('/studio/') ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/embed')
+  ) {
     return null
   }
 

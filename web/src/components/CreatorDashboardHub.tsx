@@ -809,13 +809,66 @@ export function CreatorDashboardHub({
                 <button
                   type="submit"
                   disabled={savingChannel}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#F2B544] px-6 py-2.5 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#F2B544] px-6 py-2.5 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {savingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   <span>Save Changes</span>
                 </button>
               </div>
             </form>
+
+            {/* Embed Player Widget Generator for Websites */}
+            <div className="rounded-3xl border border-[#2A2724] bg-[#141210] p-6 sm:p-7 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between border-b border-[#2A2724] pb-3">
+                <div>
+                  <h3 className="font-display font-bold text-base text-[#F4EFE8]">
+                    Embed Player on Your Website
+                  </h3>
+                  <p className="text-xs text-[#A39B91]">
+                    Paste this iframe onto your church, school, or personal blog so visitors can listen directly.
+                  </p>
+                </div>
+                <span className="text-xs font-mono text-[#F2B544] bg-[#F2B544]/10 border border-[#F2B544]/30 px-2.5 py-1 rounded-full">
+                  Embed Ready
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-2 pl-3">
+                  <span className="text-xs font-mono text-[#A39B91] truncate flex-1 select-all">
+                    {`<iframe src="https://lisnr.goanitech.com/embed/${currentChannel.slug}" width="100%" height="160" frameborder="0" allow="autoplay"></iframe>`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`<iframe src="https://lisnr.goanitech.com/embed/${currentChannel.slug}" width="100%" height="160" frameborder="0" allow="autoplay"></iframe>`)
+                      setCopiedUrl(true)
+                      setTimeout(() => setCopiedUrl(false), 2000)
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#F2B544] px-3.5 py-2 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Code</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className="space-y-1.5 pt-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#A39B91]">
+                  Live Preview
+                </span>
+                <div className="rounded-2xl border border-[#2A2724] overflow-hidden max-w-xl">
+                  <iframe
+                    src={`/embed/${currentChannel.slug}`}
+                    width="100%"
+                    height="160"
+                    className="border-0 w-full"
+                    title={`${currentChannel.name} Embed Preview`}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

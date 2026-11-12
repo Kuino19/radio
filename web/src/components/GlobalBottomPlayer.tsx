@@ -37,9 +37,17 @@ export function GlobalBottomPlayer() {
     openGuestModal,
   } = usePlayer()
 
-  // Do not render global bottom bar when the listener is on the dedicated station page (/c/[slug])
-  // or creator dashboard/studio to prevent UI overlap and distraction.
-  if (!currentTrack || pathname?.startsWith('/c/') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/studio')) return null
+  // Do not render global bottom bar when the listener is on the dedicated station page (/c/[slug]),
+  // creator dashboard/studio or embedded widget to prevent UI overlap and distraction.
+  if (
+    !currentTrack ||
+    pathname?.startsWith('/c/') ||
+    pathname?.startsWith('/dashboard') ||
+    pathname?.startsWith('/studio') ||
+    pathname?.startsWith('/embed')
+  ) {
+    return null
+  }
 
   return (
     <>
