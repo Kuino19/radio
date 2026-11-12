@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://lisnr.goanitech.com'),
   title: 'LISNR — Live Audio Broadcasts',
   description: 'Speech-first live audio platform for sermons, talk shows, community radio, and interviews.',
   icons: {
