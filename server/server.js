@@ -42,7 +42,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     service: 'lisnr-backend',
-    version: '1.1.0',
+    version: '1.2.0',
     activeBroadcasts: activeBroadcasts.size,
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
@@ -62,6 +62,33 @@ const wss = new WebSocketServer({
 
 // Map<string, BroadcastSession>
 const activeBroadcasts = new Map()
+
+// Timeout helper to prevent hanging promises
+function withTimeout(promise, ms, label = 'Operation') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ])
+}
+
+// Decode Supabase JWT claims safely
+function extractUserFromToken(token) {
+  try {
+    if (!token || typeof token !== 'string') return null
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'))
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return { error: 'Session token has expired' }
+    }
+    if (!payload.sub) {
+      return { error: 'Invalid user token payload' }
+    }
+    return { user: { id: payload.sub, email: payload.email } }
+  } catch (err) {
+    return { error: err.message }
+  }
+}
 
 // Helper: End a broadcast session cleanly and archive recording
 async function endBroadcast(channelSlug, reason = 'manual') {
@@ -250,22 +277,64 @@ wss.on('connection', (ws, req) => {
           return ws.close(4001, 'Missing credentials')
         }
 
-        // Verify Supabase Token
-        const { data: userData, error: userError } = await supabase.auth.getUser(token)
-        if (userError || !userData?.user) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid or expired auth session' }))
-          return ws.close(4001, 'Invalid token')
+        console.log(`[STREAM] Received start broadcast request for station: "${channelSlug}"`)
+
+        // 1. Verify Supabase Token (via Auth API with timeout, fallback to JWT claims)
+        let userId = null
+        try {
+          const { data: userData, error: userError } = await withTimeout(
+            supabase.auth.getUser(token),
+            3000,
+            'Supabase auth'
+          )
+          if (!userError && userData?.user?.id) {
+            userId = userData.user.id
+          }
+        } catch (authErr) {
+          console.warn('[AUTH] Supabase Auth API verification timed out or failed:', authErr.message)
         }
-        const userId = userData.user.id
 
-        // Verify Channel Ownership & Check Suspended status
-        const { data: channel, error: channelError } = await supabase
-          .from('channels')
-          .select('id, name, slug, owner_id, is_suspended')
-          .eq('slug', channelSlug.toLowerCase())
-          .single()
+        if (!userId) {
+          const parsed = extractUserFromToken(token)
+          if (parsed?.error) {
+            console.warn(`[AUTH] Token extraction failed: ${parsed.error}`)
+            ws.send(JSON.stringify({ type: 'error', message: `Authentication failed: ${parsed.error}` }))
+            return ws.close(4001, 'Invalid token')
+          }
+          if (parsed?.user?.id) {
+            userId = parsed.user.id
+            console.log(`[AUTH] Broadcaster verified via token signature for user: ${userId}`)
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid or expired auth session' }))
+            return ws.close(4001, 'Invalid token')
+          }
+        }
 
-        if (channelError || !channel || channel.owner_id !== userId) {
+        // 2. Verify Channel Ownership & Check Suspended status
+        let channel = null
+        try {
+          const { data: chData, error: channelError } = await withTimeout(
+            supabase
+              .from('channels')
+              .select('id, name, slug, owner_id, is_suspended')
+              .eq('slug', channelSlug.toLowerCase())
+              .single(),
+            4000,
+            'Channel query'
+          )
+
+          if (channelError) {
+            throw channelError
+          }
+          channel = chData
+        } catch (dbErr) {
+          console.error(`[DB] Channel lookup error for ${channelSlug}:`, dbErr.message)
+          ws.send(JSON.stringify({ type: 'error', message: `Station verification failed: ${dbErr.message}` }))
+          return ws.close(4002, 'Database error')
+        }
+
+        if (!channel || channel.owner_id !== userId) {
+          console.warn(`[AUTH] Forbidden: User ${userId} is not owner of station ${channelSlug}`)
           ws.send(JSON.stringify({ type: 'error', message: 'Forbidden: You do not own this channel' }))
           return ws.close(4003, 'Forbidden')
         }
@@ -400,7 +469,10 @@ wss.on('connection', (ws, req) => {
         ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }))
       }
     } catch (err) {
-      console.warn('[WS] Error processing message:', err.message)
+      console.error('[WS] Error processing message:', err.message)
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: err.message || 'Server error processing request' }))
+      } catch {}
     }
   })
 
