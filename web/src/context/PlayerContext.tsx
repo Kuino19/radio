@@ -183,10 +183,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         console.warn('Playback error:', err.name, err.message)
         setIsPlaying(false)
         setIsLoading(false)
+        if (err.name === 'NotAllowedError') {
+          // Browser autoplay policy blocked unmuted playback without prior user interaction.
+          // Keep buffer state ready and do not show an offline error.
+          setBufferHealth('buffering')
+          setPlaybackError(null)
+          return
+        }
+        if (err.name === 'AbortError') {
+          return
+        }
         setBufferHealth('offline')
         setPlaybackError(
           track.isLive
-            ? 'Stream mount is currently offline (Icecast has no active broadcast feeding this mount).'
+            ? 'Broadcast mount is currently connecting. Tap play to retry.'
             : 'Could not play audio file.'
         )
       })
@@ -194,11 +204,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Play channel request
   const playChannel = useCallback((track: ChannelTrack) => {
-    const saved = getSavedGuestName()
-    if (!saved && !currentDisplayName) {
-      pendingTrackRef.current = track
-      setShowGuestModal(true)
-      return
+    // If guest name not yet loaded, auto-assign default without interrupting playback
+    if (!currentDisplayName) {
+      const saved = getSavedGuestName()
+      if (saved) {
+        setCurrentDisplayName(saved)
+      } else {
+        const fallback = `Guest-${Math.floor(1000 + Math.random() * 9000)}`
+        setCurrentDisplayName(fallback)
+      }
     }
 
     if (currentTrack?.channelSlug === track.channelSlug && isPlaying) {

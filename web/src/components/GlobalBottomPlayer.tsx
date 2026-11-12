@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { usePlayer } from '@/context/PlayerContext'
 import { SpectrumVisualizer } from '@/components/SpectrumVisualizer'
 import {
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react'
 
 export function GlobalBottomPlayer() {
+  const pathname = usePathname()
   const {
     currentTrack,
     isPlaying,
@@ -35,7 +37,9 @@ export function GlobalBottomPlayer() {
     openGuestModal,
   } = usePlayer()
 
-  if (!currentTrack) return null
+  // Do not render global bottom bar when the listener is on the dedicated station page (/c/[slug])
+  // to prevent confusing duplicate play buttons.
+  if (!currentTrack || pathname?.startsWith('/c/')) return null
 
   return (
     <>

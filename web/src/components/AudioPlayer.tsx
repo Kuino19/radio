@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePlayer } from '@/context/PlayerContext'
 import { SpectrumVisualizer } from '@/components/SpectrumVisualizer'
 import { TipHostModal } from '@/components/TipHostModal'
@@ -88,6 +88,14 @@ export function AudioPlayer({
     })
   }
 
+  // Automatically attempt playback when listener visits an active live stream
+  useEffect(() => {
+    if (isLive && !isPlaying && !isLoading) {
+      handlePlayClick()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, channelSlug])
+
   const effectiveDisplayName = userDisplayName || currentDisplayName
   const playbackRates = [0.75, 1, 1.25, 1.5, 2]
 
@@ -149,15 +157,17 @@ export function AudioPlayer({
           )}
         </div>
 
-        {/* Playback Error Notice */}
+        {/* Playback Error / Status Notice */}
         {playbackError && isCurrentActiveChannel && (
           <div className="rounded-2xl border border-[#2A2724] bg-[#0E0D0C] p-4 text-xs text-[#F4EFE8] space-y-1">
             <div className="flex items-center gap-2 font-bold text-[#F2B544]">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>Broadcast is currently offline</span>
+              <span>{isLive ? 'Connecting to live broadcast...' : 'Broadcast is currently offline'}</span>
             </div>
             <p className="text-[11px] text-[#A39B91] leading-relaxed">
-              The station host is not broadcasting at this moment. You will be automatically connected when they go live.
+              {isLive
+                ? 'Audio stream is initializing. If sound does not begin playing immediately, please tap the Play button below.'
+                : 'The station host is not broadcasting at this moment. You will be automatically connected when they go live.'}
             </p>
           </div>
         )}
