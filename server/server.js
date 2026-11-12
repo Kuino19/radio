@@ -185,6 +185,51 @@ function extractUserFromToken(token) {
   }
 }
 
+// Helper: Gracefully finish ffmpeg process by closing stdin and awaiting clean exit (flushing .webm container)
+function gracefulCloseFfmpeg(proc, name, timeoutMs = 4000) {
+  if (!proc) return Promise.resolve()
+
+  return new Promise((resolve) => {
+    let resolved = false
+    const finish = () => {
+      if (!resolved) {
+        resolved = true
+        resolve()
+      }
+    }
+
+    proc.once('close', (code) => {
+      console.log(`[${name}] Exited cleanly with code ${code}`)
+      finish()
+    })
+
+    proc.once('error', (err) => {
+      console.warn(`[${name}] Process error during close: ${err.message}`)
+      finish()
+    })
+
+    // End stdin pipe to signal EOF to FFmpeg so it writes the file trailer cleanly
+    try {
+      if (proc.stdin && !proc.stdin.destroyed) {
+        proc.stdin.end()
+      }
+    } catch (err) {
+      console.warn(`[${name}] stdin.end error: ${err.message}`)
+    }
+
+    // Safety fallback: if FFmpeg doesn't exit within timeoutMs, SIGTERM it
+    setTimeout(() => {
+      if (!resolved) {
+        console.warn(`[${name}] Did not exit within ${timeoutMs}ms, terminating process...`)
+        try {
+          proc.kill('SIGTERM')
+        } catch {}
+        finish()
+      }
+    }, timeoutMs)
+  })
+}
+
 // Helper: End a broadcast session cleanly and archive recording
 async function endBroadcast(channelSlug, reason = 'manual') {
   const session = activeBroadcasts.get(channelSlug)
@@ -195,27 +240,13 @@ async function endBroadcast(channelSlug, reason = 'manual') {
   if (session.disconnectTimer) clearTimeout(session.disconnectTimer)
   if (session.noAudioTimer) clearInterval(session.noAudioTimer)
 
-  // Kill live ffmpeg process
-  if (session.ffmpeg) {
-    try {
-      session.ffmpeg.stdin.end()
-      session.ffmpeg.kill('SIGTERM')
-    } catch (err) {
-      console.warn(`[FFMPEG LIVE] Error closing process: ${err.message}`)
-    }
-    session.ffmpeg = null
-  }
-
-  // Kill separate recording process
-  if (session.recProc) {
-    try {
-      session.recProc.stdin.end()
-      session.recProc.kill('SIGTERM')
-    } catch (err) {
-      console.warn(`[FFMPEG REC] Error closing process: ${err.message}`)
-    }
-    session.recProc = null
-  }
+  // Cleanly close both live and recording ffmpeg processes (letting .webm container trailer finalize)
+  await Promise.all([
+    gracefulCloseFfmpeg(session.ffmpeg, `FFMPEG LIVE ${channelSlug}`),
+    gracefulCloseFfmpeg(session.recProc, `FFMPEG REC ${channelSlug}`),
+  ])
+  session.ffmpeg = null
+  session.recProc = null
 
   // Notify socket
   if (session.ws && session.ws.readyState === 1) {
@@ -317,7 +348,9 @@ function spawnLiveFfmpeg(channelSlug) {
     icecastUrl,
   ]
 
-  console.log(`[FFMPEG LIVE] Command: ffmpeg ${ffmpegArgs.join(' ')}`)
+  const maskedIcecastUrl = `icecast://source:***@${ICECAST_HOST}:${ICECAST_PORT}/${channelSlug}`
+  const maskedArgs = ffmpegArgs.map((arg) => (arg === icecastUrl ? maskedIcecastUrl : arg))
+  console.log(`[FFMPEG LIVE] Command: ffmpeg ${maskedArgs.join(' ')}`)
 
   const ffmpeg = spawn('ffmpeg', ffmpegArgs)
 
