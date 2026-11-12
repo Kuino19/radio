@@ -30,6 +30,31 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   },
 })
 
+// Cloudflare R2 S3 Object Storage Client
+let r2Client = null
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '6537e5e57f86b0c440cac42c9fa60043'
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || ''
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ''
+const R2_BUCKET = process.env.R2_BUCKET || 'lisnr-recordings'
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
+
+if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
+  try {
+    const { S3Client } = require('@aws-sdk/client-s3')
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    })
+    console.log('[INIT] Cloudflare R2 client initialized successfully')
+  } catch (r2InitErr) {
+    console.warn('[INIT] Cloudflare R2 initialization skipped:', r2InitErr.message)
+  }
+}
+
 // Initialize Express
 const app = express()
 app.use(cors({ origin: '*' }))
@@ -283,19 +308,51 @@ async function endBroadcast(channelSlug, reason = 'manual') {
         const storagePath = `${session.channelSlug}/${session.showId || Date.now()}${ext}`
         const fileBuffer = fs.readFileSync(session.recordingFilePath)
 
-        const { error: uploadErr } = await supabase.storage
-          .from('recordings')
-          .upload(storagePath, fileBuffer, {
-            contentType: mimeType,
-            upsert: true,
-          })
-
         let audioUrl = `https://radio.goanitech.com/recordings/${path.basename(session.recordingFilePath)}`
-        if (!uploadErr) {
-          const { data: publicUrlData } = supabase.storage
-            .from('recordings')
-            .getPublicUrl(storagePath)
-          audioUrl = publicUrlData.publicUrl
+
+        // 1. Attempt upload to Cloudflare R2 if configured
+        if (r2Client && R2_BUCKET) {
+          try {
+            const { PutObjectCommand } = require('@aws-sdk/client-s3')
+            const r2Key = `${session.channelSlug}/${session.showId || Date.now()}${ext}`
+            await r2Client.send(
+              new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: r2Key,
+                Body: fileBuffer,
+                ContentType: mimeType,
+              })
+            )
+            if (R2_PUBLIC_URL) {
+              audioUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${r2Key}`
+            }
+            console.log(`[R2] Show successfully archived to Cloudflare R2: ${r2Key}`)
+          } catch (r2Err) {
+            console.warn(`[R2] Upload failed (${r2Err.message}), falling back to Supabase/local...`)
+          }
+        }
+
+        // 2. Fallback to Supabase Storage if R2 is not enabled or no public URL
+        if (audioUrl.includes('radio.goanitech.com')) {
+          try {
+            const { error: uploadErr } = await supabase.storage
+              .from('recordings')
+              .upload(storagePath, fileBuffer, {
+                contentType: mimeType,
+                upsert: true,
+              })
+
+            if (!uploadErr) {
+              const { data: publicUrlData } = supabase.storage
+                .from('recordings')
+                .getPublicUrl(storagePath)
+              if (publicUrlData?.publicUrl) {
+                audioUrl = publicUrlData.publicUrl
+              }
+            }
+          } catch (supErr) {
+            console.warn('[STORAGE] Supabase storage upload warning:', supErr.message)
+          }
         }
 
         // Insert into public.recordings table
