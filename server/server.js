@@ -15,10 +15,11 @@ const ICECAST_HOST = process.env.ICECAST_HOST || '127.0.0.1'
 const ICECAST_PORT = process.env.ICECAST_PORT || '8000'
 const ICECAST_SOURCE_PASSWORD = process.env.ICECAST_SOURCE_PASSWORD || 'hackme'
 
-// Ensure recordings folder exists
+// Ensure recordings folder exists on startup
 const RECORDINGS_DIR = path.join(__dirname, 'recordings')
 if (!fs.existsSync(RECORDINGS_DIR)) {
   fs.mkdirSync(RECORDINGS_DIR, { recursive: true })
+  console.log(`[INIT] Created recordings directory at: ${RECORDINGS_DIR}`)
 }
 
 // Initialize Supabase admin client
@@ -111,15 +112,26 @@ async function endBroadcast(channelSlug, reason = 'manual') {
   if (session.disconnectTimer) clearTimeout(session.disconnectTimer)
   if (session.noAudioTimer) clearInterval(session.noAudioTimer)
 
-  // Kill ffmpeg process
+  // Kill live ffmpeg process
   if (session.ffmpeg) {
     try {
       session.ffmpeg.stdin.end()
       session.ffmpeg.kill('SIGTERM')
     } catch (err) {
-      console.warn(`[FFMPEG] Error closing process: ${err.message}`)
+      console.warn(`[FFMPEG LIVE] Error closing process: ${err.message}`)
     }
     session.ffmpeg = null
+  }
+
+  // Kill separate recording process
+  if (session.recProc) {
+    try {
+      session.recProc.stdin.end()
+      session.recProc.kill('SIGTERM')
+    } catch (err) {
+      console.warn(`[FFMPEG REC] Error closing process: ${err.message}`)
+    }
+    session.recProc = null
   }
 
   // Notify socket
@@ -151,15 +163,16 @@ async function endBroadcast(channelSlug, reason = 'manual') {
     // Archive recording if recorded file exists
     if (session.recordingFilePath && fs.existsSync(session.recordingFilePath)) {
       const stats = fs.statSync(session.recordingFilePath)
-      if (stats.size > 10000) {
-        // Upload to Supabase Storage recordings bucket
-        const storagePath = `${session.channelSlug}/${session.showId}.mp3`
+      if (stats.size > 1000) {
+        const ext = path.extname(session.recordingFilePath)
+        const mimeType = ext === '.webm' ? 'audio/webm' : 'audio/mpeg'
+        const storagePath = `${session.channelSlug}/${session.showId || Date.now()}${ext}`
         const fileBuffer = fs.readFileSync(session.recordingFilePath)
 
         const { error: uploadErr } = await supabase.storage
           .from('recordings')
           .upload(storagePath, fileBuffer, {
-            contentType: 'audio/mpeg',
+            contentType: mimeType,
             upsert: true,
           })
 
@@ -191,15 +204,11 @@ async function endBroadcast(channelSlug, reason = 'manual') {
   activeBroadcasts.delete(channelSlug)
 }
 
-// Helper: Spawn ffmpeg with dual output (Icecast + Local MP3 Archive)
-function spawnFfmpeg(channelSlug, showId) {
+// Helper: Spawn live ffmpeg transcoder to Icecast (MP3 64 kbps mono)
+function spawnLiveFfmpeg(channelSlug) {
   const icecastUrl = `icecast://source:${encodeURIComponent(
     ICECAST_SOURCE_PASSWORD
   )}@${ICECAST_HOST}:${ICECAST_PORT}/${channelSlug}`
-
-  const recordingFilePath = path.join(RECORDINGS_DIR, `${showId || channelSlug}-${Date.now()}.mp3`)
-
-  console.log(`[FFMPEG] Spawning transcoder for /${channelSlug} (Icecast + Recording)`)
 
   const ffmpegArgs = [
     '-loglevel',
@@ -208,7 +217,6 @@ function spawnFfmpeg(channelSlug, showId) {
     'webm',
     '-i',
     'pipe:0',
-    // Output 1: Live Icecast stream
     '-c:a',
     'libmp3lame',
     '-b:a',
@@ -224,39 +232,76 @@ function spawnFfmpeg(channelSlug, showId) {
     '-f',
     'mp3',
     icecastUrl,
-    // Output 2: Local MP3 recording archive
-    '-c:a',
-    'libmp3lame',
-    '-b:a',
-    '64k',
-    '-ac',
-    '1',
-    '-ar',
-    '44100',
-    '-f',
-    'mp3',
-    recordingFilePath,
   ]
+
+  console.log(`[FFMPEG LIVE] Command: ffmpeg ${ffmpegArgs.join(' ')}`)
 
   const ffmpeg = spawn('ffmpeg', ffmpegArgs)
 
   ffmpeg.stderr.on('data', (data) => {
-    console.warn(`[FFMPEG ${channelSlug}] ${data.toString().trim()}`)
+    console.warn(`[FFMPEG LIVE ${channelSlug}] ${data.toString().trim()}`)
   })
 
   ffmpeg.on('error', (err) => {
-    console.error(`[FFMPEG ${channelSlug}] Process error:`, err.message)
+    console.error(`[FFMPEG LIVE ${channelSlug}] Process error:`, err.message)
   })
 
   ffmpeg.on('close', (code) => {
-    console.log(`[FFMPEG ${channelSlug}] Process exited with code ${code}`)
+    console.log(`[FFMPEG LIVE ${channelSlug}] Process exited with code ${code}`)
   })
 
   ffmpeg.stdin.on('error', (err) => {
-    console.warn(`[FFMPEG ${channelSlug}] stdin pipe error: ${err.message}`)
+    console.warn(`[FFMPEG LIVE ${channelSlug}] stdin pipe error: ${err.message}`)
   })
 
-  return { ffmpeg, recordingFilePath }
+  return ffmpeg
+}
+
+// Helper: Spawn separate recording process to save original Opus audio as .webm with -c copy
+function spawnRecordingFfmpeg(showId, channelSlug) {
+  try {
+    const filename = `${showId || channelSlug || 'recording'}.webm`
+    const recordingFilePath = path.join(RECORDINGS_DIR, filename)
+
+    const recArgs = [
+      '-loglevel',
+      'warning',
+      '-f',
+      'webm',
+      '-i',
+      'pipe:0',
+      '-c',
+      'copy',
+      '-f',
+      'webm',
+      recordingFilePath,
+    ]
+
+    console.log(`[FFMPEG RECORDING] Command: ffmpeg ${recArgs.join(' ')}`)
+
+    const recProc = spawn('ffmpeg', recArgs)
+
+    recProc.stderr.on('data', (data) => {
+      console.warn(`[FFMPEG REC ${channelSlug}] ${data.toString().trim()}`)
+    })
+
+    recProc.on('error', (err) => {
+      console.warn(`[FFMPEG REC ${channelSlug}] Process error (recording ignored, live unaffected):`, err.message)
+    })
+
+    recProc.on('close', (code) => {
+      console.log(`[FFMPEG REC ${channelSlug}] Recording process exited with code ${code}`)
+    })
+
+    recProc.stdin.on('error', (err) => {
+      console.warn(`[FFMPEG REC ${channelSlug}] stdin pipe error:`, err.message)
+    })
+
+    return { recProc, recordingFilePath }
+  } catch (err) {
+    console.warn(`[FFMPEG REC] Spawn failed (live stream continues unaffected):`, err.message)
+    return { recProc: null, recordingFilePath: null }
+  }
 }
 
 // WebSocket handler
@@ -274,14 +319,25 @@ wss.on('connection', (ws, req) => {
   ws.on('message', async (data, isBinary) => {
     // 1. Audio stream chunks
     if (isBinary) {
-      if (!ws.session || !ws.session.ffmpeg || !ws.session.ffmpeg.stdin.writable) {
-        return
-      }
+      if (!ws.session) return
       ws.session.lastAudioTime = Date.now()
-      try {
-        ws.session.ffmpeg.stdin.write(data)
-      } catch (err) {
-        console.warn(`[STREAM] Error writing audio chunk: ${err.message}`)
+
+      // Primary: Live stream to Icecast
+      if (ws.session.ffmpeg && ws.session.ffmpeg.stdin && ws.session.ffmpeg.stdin.writable) {
+        try {
+          ws.session.ffmpeg.stdin.write(data)
+        } catch (err) {
+          console.warn(`[STREAM] Error writing live audio chunk: ${err.message}`)
+        }
+      }
+
+      // Secondary: Recording process (isolated, failure does not affect live stream)
+      if (ws.session.recProc && ws.session.recProc.stdin && ws.session.recProc.stdin.writable) {
+        try {
+          ws.session.recProc.stdin.write(data)
+        } catch (err) {
+          console.warn(`[RECORDING] Error writing recording chunk: ${err.message}`)
+        }
       }
       return
     }
@@ -399,8 +455,11 @@ wss.on('connection', (ws, req) => {
           console.warn('[DB] Channel live update warning:', liveErr.message)
         }
 
-        // Spawn ffmpeg with dual output
-        const { ffmpeg, recordingFilePath } = spawnFfmpeg(channel.slug, show?.id)
+        // 1. Spawn primary live Icecast transcoder
+        const ffmpeg = spawnLiveFfmpeg(channel.slug)
+
+        // 2. Spawn separate, isolated recording process (lossless Opus to .webm)
+        const { recProc, recordingFilePath } = spawnRecordingFfmpeg(show?.id, channel.slug)
 
         const session = {
           channelId: channel.id,
@@ -411,6 +470,7 @@ wss.on('connection', (ws, req) => {
           showTitle: title,
           startedAt: Date.now(),
           ffmpeg,
+          recProc,
           recordingFilePath,
           ws,
           lastAudioTime: Date.now(),
