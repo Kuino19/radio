@@ -76,7 +76,7 @@ export async function Navbar() {
 
               {/* The GO LIVE button: Red strictly for Go Live / Studio */}
               <Link
-                href="/dashboard"
+                href="/dashboard?tab=studio"
                 className="flex items-center gap-1.5 rounded-full bg-[#FF4A3D] px-4 py-1.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#FF4A3D]/20 hover:brightness-110 active:scale-95 transition-all"
               >
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />

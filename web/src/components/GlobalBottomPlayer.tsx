@@ -38,8 +38,8 @@ export function GlobalBottomPlayer() {
   } = usePlayer()
 
   // Do not render global bottom bar when the listener is on the dedicated station page (/c/[slug])
-  // to prevent confusing duplicate play buttons.
-  if (!currentTrack || pathname?.startsWith('/c/')) return null
+  // or creator dashboard/studio to prevent UI overlap and distraction.
+  if (!currentTrack || pathname?.startsWith('/c/') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/studio')) return null
 
   return (
     <>

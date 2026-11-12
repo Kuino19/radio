@@ -4,6 +4,7 @@ import { Navbar } from '@/components/Navbar'
 import { MobileNav } from '@/components/MobileNav'
 import { PlayerProvider } from '@/context/PlayerContext'
 import { GlobalBottomPlayer } from '@/components/GlobalBottomPlayer'
+import { Footer } from '@/components/Footer'
 import './globals.css'
 
 const bricolage = Bricolage_Grotesque({
@@ -61,17 +62,7 @@ export default function RootLayout({
         <PlayerProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
-          <footer className="border-t border-[#2A2724] py-8 text-center text-xs text-[#A39B91] space-y-3">
-            <p className="font-display font-bold text-sm tracking-wide text-[#F4EFE8]/70">LISNR.</p>
-            <p>© 2026 LISNR. Built for speech-first live audio streaming.</p>
-            <div className="flex items-center justify-center gap-4 text-[12px] text-[#A39B91]">
-              <a href="/privacy" className="hover:text-[#F2B544] transition-colors">Privacy Policy</a>
-              <span>•</span>
-              <a href="/terms" className="hover:text-[#F2B544] transition-colors">Terms of Service</a>
-              <span>•</span>
-              <a href="/explore" className="hover:text-[#F2B544] transition-colors">Explore Stations</a>
-            </div>
-          </footer>
+          <Footer />
           <GlobalBottomPlayer />
           <MobileNav />
         </PlayerProvider>

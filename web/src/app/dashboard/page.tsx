@@ -6,7 +6,15 @@ import type { Channel, Series, Episode, MonetizationSettings, Tip, Show, Recordi
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams?: Promise<{
+    channel?: string
+    tab?: string
+  }>
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = searchParams ? await searchParams : {}
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -126,6 +134,8 @@ export default async function DashboardPage() {
         upcomingShows={upcomingShows}
         totalListens={totalListens}
         totalFollowers={totalFollowers}
+        initialNav={params.tab as any}
+        initialChannelSlug={params.channel}
       />
     </div>
   )

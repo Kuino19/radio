@@ -36,6 +36,7 @@ import { ProgramScheduleCalendar } from '@/components/ProgramScheduleCalendar'
 import { ScheduleShowModal } from '@/components/ScheduleShowModal'
 import { AudioUploadModal } from '@/components/AudioUploadModal'
 import { SeriesManager } from '@/components/SeriesManager'
+import { StudioCockpit } from '@/components/StudioCockpit'
 import type { Channel, Series, Episode, MonetizationSettings, Tip, Show, Recording, ScheduledShow } from '@/types/database'
 
 interface CreatorDashboardHubProps {
@@ -49,6 +50,8 @@ interface CreatorDashboardHubProps {
   upcomingShows?: ScheduledShow[]
   totalListens?: number
   totalFollowers?: number
+  initialNav?: 'dashboard' | 'studio' | 'live_events' | 'recordings' | 'channel' | 'analytics' | 'series'
+  initialChannelSlug?: string
 }
 
 export function CreatorDashboardHub({
@@ -62,11 +65,20 @@ export function CreatorDashboardHub({
   upcomingShows: initialUpcomingShows = [],
   totalListens = 0,
   totalFollowers = 0,
+  initialNav,
+  initialChannelSlug,
 }: CreatorDashboardHubProps) {
   const supabase = createClient()
   const [channels, setChannels] = useState<Channel[]>(initialChannels)
-  const [selectedChannelId, setSelectedChannelId] = useState<string>(channels[0]?.id || '')
-  const [activeNav, setActiveNav] = useState<'dashboard' | 'live_events' | 'recordings' | 'channel' | 'analytics' | 'series'>('dashboard')
+  const matchedChannel = initialChannelSlug
+    ? initialChannels.find((c) => c.slug.toLowerCase() === initialChannelSlug.toLowerCase())
+    : null
+  const [selectedChannelId, setSelectedChannelId] = useState<string>(
+    matchedChannel?.id || initialChannels[0]?.id || ''
+  )
+  const [activeNav, setActiveNav] = useState<'dashboard' | 'studio' | 'live_events' | 'recordings' | 'channel' | 'analytics' | 'series'>(
+    initialNav || 'dashboard'
+  )
   const [dashboardSubTab, setDashboardSubTab] = useState<'live_events' | 'recordings'>('live_events')
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -177,7 +189,7 @@ export function CreatorDashboardHub({
             <button
               type="button"
               onClick={() => setActiveNav('dashboard')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
                 activeNav === 'dashboard'
                   ? 'bg-[#1A1816] text-[#F2B544] border border-[#2A2724]'
                   : 'text-[#A39B91] hover:text-[#F4EFE8] hover:bg-[#1A1816]/50'
@@ -185,6 +197,22 @@ export function CreatorDashboardHub({
             >
               <Radio className="w-4 h-4" />
               <span>Dashboard</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveNav('studio')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
+                activeNav === 'studio'
+                  ? 'bg-[#FF4A3D]/15 text-[#FF4A3D] border border-[#FF4A3D]/40 font-bold'
+                  : 'text-[#A39B91] hover:text-[#FF4A3D] hover:bg-[#1A1816]/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Mic className="w-4 h-4 text-[#FF4A3D]" />
+                <span>Live Studio</span>
+              </div>
+              <span className="w-2 h-2 rounded-full bg-[#FF4A3D] animate-pulse" />
             </button>
 
             <button
@@ -337,19 +365,21 @@ export function CreatorDashboardHub({
 
           <div className="flex items-center gap-3 shrink-0">
             {currentChannel && (
-              <Link
-                href={`/studio/${currentChannel.slug}`}
-                className="w-8 h-8 rounded-full bg-[#FF4A3D] flex items-center justify-center text-white hover:brightness-110 active:scale-95 transition-all shadow-md shadow-[#FF4A3D]/20"
-                title="Open Broadcast Studio"
+              <button
+                type="button"
+                onClick={() => setActiveNav('studio')}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FF4A3D] text-xs font-bold text-white hover:brightness-110 active:scale-95 transition-all shadow-md shadow-[#FF4A3D]/20 cursor-pointer"
+                title="Go Live in Studio"
               >
-                <Mic className="w-4 h-4" />
-              </Link>
+                <Mic className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Go Live</span>
+              </button>
             )}
 
             <button
               type="button"
               onClick={() => setActiveNav('channel')}
-              className="w-8 h-8 rounded-full bg-[#1A1816] border border-[#2A2724] flex items-center justify-center text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
+              className="w-8 h-8 rounded-full bg-[#1A1816] border border-[#2A2724] flex items-center justify-center text-[#A39B91] hover:text-[#F4EFE8] transition-colors cursor-pointer"
               title="Station Settings"
             >
               <Settings className="w-4 h-4" />
@@ -437,14 +467,15 @@ export function CreatorDashboardHub({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center pt-4">
                   {/* Left Column: Action Buttons */}
                   <div className="space-y-4 max-w-xs mx-auto w-full">
-                    {stationSlug ? (
-                      <Link
-                        href={`/studio/${stationSlug}`}
-                        className="w-full flex items-center justify-center gap-2 rounded-full bg-[#FF4A3D] py-3.5 px-6 text-sm font-bold text-white shadow-lg shadow-[#FF4A3D]/25 hover:brightness-110 active:scale-95 transition-all text-center"
+                    {currentChannel ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveNav('studio')}
+                        className="w-full flex items-center justify-center gap-2 rounded-full bg-[#FF4A3D] py-3.5 px-6 text-sm font-bold text-white shadow-lg shadow-[#FF4A3D]/25 hover:brightness-110 active:scale-95 transition-all text-center cursor-pointer"
                       >
                         <Radio className="w-4 h-4" />
                         <span>Instant event</span>
-                      </Link>
+                      </button>
                     ) : (
                       <Link
                         href="/channels/new"
@@ -457,7 +488,7 @@ export function CreatorDashboardHub({
                     <button
                       type="button"
                       onClick={() => setShowScheduleModal(true)}
-                      className="w-full flex items-center justify-center gap-2 rounded-full bg-white text-[#0E0D0C] hover:bg-[#F4EFE8] py-3.5 px-6 text-sm font-bold shadow-md active:scale-95 transition-all text-center"
+                      className="w-full flex items-center justify-center gap-2 rounded-full bg-white text-[#0E0D0C] hover:bg-[#F4EFE8] py-3.5 px-6 text-sm font-bold shadow-md active:scale-95 transition-all text-center cursor-pointer"
                     >
                       <Calendar className="w-4 h-4" />
                       <span>Schedule event</span>
@@ -480,18 +511,19 @@ export function CreatorDashboardHub({
                             <button
                               type="button"
                               onClick={() => setShowScheduleModal(true)}
-                              className="text-[#FF4A3D] hover:underline font-semibold"
+                              className="text-[#FF4A3D] hover:underline font-semibold cursor-pointer"
                             >
                               Schedule an event
                             </button>
                             {' or... '}
-                            {stationSlug && (
-                              <Link
-                                href={`/studio/${stationSlug}`}
-                                className="text-[#FF4A3D] hover:underline font-semibold"
+                            {currentChannel && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveNav('studio')}
+                                className="text-[#FF4A3D] hover:underline font-semibold cursor-pointer"
                               >
                                 Start an instant event
-                              </Link>
+                              </button>
                             )}
                           </p>
                         </div>
@@ -606,6 +638,14 @@ export function CreatorDashboardHub({
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB: STUDIO LIVE BROADCAST COCKPIT */}
+        {activeNav === 'studio' && currentChannel && (
+          <StudioCockpit
+            channel={currentChannel}
+            onReturnToDashboard={() => setActiveNav('dashboard')}
+          />
         )}
 
         {/* TAB: LIVE EVENTS (FULL CALENDAR) */}
