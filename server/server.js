@@ -54,6 +54,89 @@ app.get('/api/ping', (req, res) => {
   res.status(200).send('pong')
 })
 
+// Heartbeat endpoint (admin rights via SUPABASE_SERVICE_ROLE_KEY to update channels & sessions)
+app.post('/api/heartbeat', async (req, res) => {
+  try {
+    const { channelId, showId, anonId, userId, displayName, deviceType, referrer } = req.body
+    if (!channelId || !displayName) {
+      return res.status(400).json({ error: 'Missing channelId or displayName' })
+    }
+
+    const ninetySecondsAgo = new Date(Date.now() - 90 * 1000).toISOString()
+    const nowIso = new Date().toISOString()
+
+    // 1. Upsert listen session
+    let existing = null
+    if (userId) {
+      const { data } = await supabase
+        .from('listen_sessions')
+        .select('id')
+        .eq('channel_id', channelId)
+        .eq('user_id', userId)
+        .gt('last_seen_at', ninetySecondsAgo)
+        .is('left_at', null)
+        .maybeSingle()
+      existing = data
+    } else if (anonId) {
+      const { data } = await supabase
+        .from('listen_sessions')
+        .select('id')
+        .eq('channel_id', channelId)
+        .eq('anon_id', anonId)
+        .gt('last_seen_at', ninetySecondsAgo)
+        .is('left_at', null)
+        .maybeSingle()
+      existing = data
+    }
+
+    if (existing) {
+      await supabase
+        .from('listen_sessions')
+        .update({ last_seen_at: nowIso, display_name: displayName })
+        .eq('id', existing.id)
+    } else {
+      await supabase.from('listen_sessions').insert({
+        channel_id: channelId,
+        show_id: showId || null,
+        user_id: userId || null,
+        anon_id: userId ? null : anonId,
+        display_name: displayName,
+        is_guest: !userId,
+        joined_at: nowIso,
+        last_seen_at: nowIso,
+        device_type: deviceType || 'desktop',
+        referrer: referrer || 'Direct',
+      })
+    }
+
+    // 2. Count active sessions
+    const { count: activeCount } = await supabase
+      .from('listen_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('channel_id', channelId)
+      .gt('last_seen_at', ninetySecondsAgo)
+      .is('left_at', null)
+
+    const finalCount = activeCount || 1
+
+    // 3. Update channel listener count
+    await supabase.from('channels').update({ current_listeners: finalCount }).eq('id', channelId)
+
+    // 4. Update show peak
+    if (showId) {
+      const { data: show } = await supabase.from('shows').select('peak_listeners').eq('id', showId).single()
+      if (show && finalCount > (show.peak_listeners || 0)) {
+        await supabase.from('shows').update({ peak_listeners: finalCount }).eq('id', showId)
+      }
+    }
+
+    res.json({ ok: true, activeListeners: finalCount })
+  } catch (err) {
+    console.warn('[HEARTBEAT] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 const server = http.createServer(app)
 const wss = new WebSocketServer({
   server,

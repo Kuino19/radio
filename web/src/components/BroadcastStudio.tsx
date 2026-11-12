@@ -50,6 +50,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const [copiedLink, setCopiedLink] = useState(false)
   const [currentListeners, setCurrentListeners] = useState(channel.current_listeners || 0)
   const [peakListeners, setPeakListeners] = useState(channel.current_listeners || 0)
+  const [activeListenerList, setActiveListenerList] = useState<{ id: string; displayName: string; isGuest: boolean }[]>([])
   const [newFollowers, setNewFollowers] = useState(0)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
@@ -215,6 +216,59 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
       supabase.removeChannel(channelSub)
     }
   }, [channel.id, supabase])
+
+  // Active listeners & analytics polling fallback while live
+  useEffect(() => {
+    if (studioState !== 'on_air') return
+
+    const fetchLiveStats = async () => {
+      try {
+        const ninetySecondsAgo = new Date(Date.now() - 90 * 1000).toISOString()
+
+        // 1. Fetch real active listener sessions
+        const { data: sessions } = await supabase
+          .from('listen_sessions')
+          .select('id, display_name, is_guest')
+          .eq('channel_id', channel.id)
+          .gt('last_seen_at', ninetySecondsAgo)
+          .is('left_at', null)
+          .order('last_seen_at', { ascending: false })
+          .limit(25)
+
+        if (sessions) {
+          const list = sessions.map((s) => ({
+            id: s.id,
+            displayName: s.display_name || 'Anonymous Listener',
+            isGuest: !!s.is_guest,
+          }))
+          setActiveListenerList(list)
+          if (list.length > 0) {
+            setCurrentListeners(list.length)
+            setPeakListeners((prev) => Math.max(prev, list.length))
+          }
+        }
+
+        // 2. Sync channel row
+        const { data: ch } = await supabase
+          .from('channels')
+          .select('current_listeners')
+          .eq('id', channel.id)
+          .single()
+
+        if (ch && typeof ch.current_listeners === 'number') {
+          setCurrentListeners((prev) => Math.max(prev, ch.current_listeners))
+          setPeakListeners((prev) => Math.max(prev, ch.current_listeners))
+        }
+      } catch (err) {
+        console.warn('Analytics poll error:', err)
+      }
+    }
+
+    fetchLiveStats()
+    const pollId = setInterval(fetchLiveStats, 4000)
+
+    return () => clearInterval(pollId)
+  }, [studioState, channel.id, supabase])
 
   // Track new followers during broadcast
   useEffect(() => {
@@ -687,7 +741,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
               <div className="rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-3 sm:p-4">
                 <span className="text-[11px] text-[#A39B91] block">Peak so far</span>
                 <span className="font-mono text-xl sm:text-2xl font-bold text-[#F4EFE8] mt-0.5 block">
-                  {studioState === 'on_air' ? peakListeners : 0}
+                  {peakListeners}
                 </span>
               </div>
 
@@ -805,7 +859,57 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
             </div>
 
             {/* Listener State */}
-            {studioState === 'on_air' && currentListeners > 0 ? (
+            {activeListenerList.length > 0 ? (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {activeListenerList.map((listener) => (
+                  <div
+                    key={listener.id}
+                    className="flex items-center justify-between text-xs p-2.5 rounded-2xl bg-[#0E0D0C] border border-[#2A2724]"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#1A1816] border border-[#2A2724] flex items-center justify-center font-bold text-xs text-[#F2B544] shrink-0">
+                        {listener.displayName.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#F4EFE8] font-medium truncate block max-w-[130px]">
+                            {listener.displayName}
+                          </span>
+                          {listener.isGuest && (
+                            <span className="text-[9px] text-[#F2B544] border border-[#F2B544]/40 bg-[#F2B544]/10 rounded-full px-1.5 py-0.2 shrink-0">
+                              guest
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[#A39B91]">Tuned in to live broadcast</span>
+                      </div>
+                    </div>
+                    <span className="flex items-center gap-1 text-[10px] font-mono text-[#3DBE7A] border border-[#3DBE7A]/30 bg-[#3DBE7A]/10 rounded-full px-2 py-0.5 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#3DBE7A] animate-pulse" />
+                      live
+                    </span>
+                  </div>
+                ))}
+                <p className="text-[11px] font-mono text-[#A39B91] pt-1">
+                  {activeListenerList.length} {activeListenerList.length === 1 ? 'person is' : 'people are'} listening right now
+                </p>
+              </div>
+            ) : studioState === 'ended' && peakListeners > 0 ? (
+              <div className="py-6 text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center mx-auto text-[#F2B544]">
+                  <Users className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-semibold text-[#F4EFE8]">
+                  Broadcast Summary
+                </p>
+                <p className="text-sm font-bold text-[#F2B544]">
+                  {peakListeners} Peak {peakListeners === 1 ? 'Listener' : 'Listeners'}
+                </p>
+                <p className="text-[11px] text-[#A39B91]">
+                  Audio recording is processed and archived.
+                </p>
+              </div>
+            ) : studioState === 'on_air' && currentListeners > 0 ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs p-3 rounded-2xl bg-[#0E0D0C] border border-[#2A2724]">
                   <div className="flex items-center gap-2.5">

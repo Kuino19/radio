@@ -44,6 +44,30 @@ export async function POST(request: Request) {
       } catch {}
     }
 
+    // Try routing via the Azure audio backend (which has full admin rights to update listeners)
+    const streamBase = process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com'
+    try {
+      const backendRes = await fetch(`${streamBase}/api/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelId,
+          showId,
+          anonId,
+          userId,
+          displayName,
+          deviceType,
+          referrer,
+        }),
+      })
+      if (backendRes.ok) {
+        const data = await backendRes.json()
+        return NextResponse.json(data)
+      }
+    } catch (backendErr) {
+      console.warn('Backend heartbeat relay error, using local supabase fallback:', backendErr)
+    }
+
     const supabase = await createClient()
     const ninetySecondsAgo = new Date(Date.now() - 90 * 1000).toISOString()
 
