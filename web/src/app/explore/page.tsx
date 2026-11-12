@@ -121,13 +121,27 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
                     </span>
                   </div>
 
-                  <div>
-                    <h3 className="font-display font-bold text-base text-[#F4EFE8] group-hover:text-[#F2B544] transition-colors">
-                      {ch.name}
-                    </h3>
-                    <p className="text-xs text-[#A39B91] line-clamp-2 mt-1">
-                      {ch.description || 'Live speech and community audio broadcast.'}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    {ch.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={ch.cover_url}
+                        alt={ch.name}
+                        className="w-10 h-10 rounded-xl object-cover border border-[#2A2724] shrink-0 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center font-bold text-xs text-[#F2B544] shrink-0 shadow-sm">
+                        {ch.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="font-display font-bold text-base text-[#F4EFE8] group-hover:text-[#F2B544] transition-colors truncate">
+                        {ch.name}
+                      </h3>
+                      <p className="text-xs text-[#A39B91] line-clamp-1 mt-0.5">
+                        {ch.description || 'Live speech and community audio broadcast.'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 

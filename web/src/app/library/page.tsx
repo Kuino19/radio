@@ -94,9 +94,18 @@ export default async function LibraryPage() {
                   className="rounded-3xl border border-[#2A2724] bg-[#1A1816] p-5 flex items-center justify-between hover:border-[#F2B544]/50 transition-all group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center font-bold text-sm text-[#F2B544] shrink-0">
-                      {ch.name.slice(0, 2).toUpperCase()}
-                    </div>
+                    {ch.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={ch.cover_url}
+                        alt={ch.name}
+                        className="w-12 h-12 rounded-2xl object-cover border border-[#2A2724] shrink-0 shadow-md"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center font-bold text-sm text-[#F2B544] shrink-0">
+                        {ch.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <h3 className="font-display font-bold text-sm text-[#F4EFE8] truncate group-hover:text-[#F2B544] transition-colors">
                         {ch.name}

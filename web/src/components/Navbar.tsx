@@ -80,9 +80,18 @@ export async function Navbar() {
                   className="flex items-center gap-2 text-sm text-[#F4EFE8] hover:text-[#F2B544] transition-colors"
                   title={profile?.display_name || user.email || 'Profile'}
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1A1816] text-[#F2B544] border border-[#2A2724] font-semibold text-xs">
-                    {(profile?.display_name || user.email || 'U').slice(0, 2).toUpperCase()}
-                  </div>
+                  {profile?.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.display_name || 'Profile'}
+                      className="h-8 w-8 rounded-full object-cover border border-[#2A2724]"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1A1816] text-[#F2B544] border border-[#2A2724] font-semibold text-xs">
+                      {(profile?.display_name || user.email || 'U').slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
                 </Link>
 
                 <form action="/auth/signout" method="post">

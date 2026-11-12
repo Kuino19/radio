@@ -81,8 +81,15 @@ export default function NewChannelPage() {
         .upload(filePath, coverFile, { upsert: true })
 
       if (uploadError) {
-        // Continue even if upload fails, but inform or keep url null
-        console.warn('Cover upload warning:', uploadError.message)
+        if (uploadError.message.toLowerCase().includes('bucket not found')) {
+          setErrorMsg(
+            "Storage bucket 'covers' not found in Supabase. Please create a public bucket named 'covers' in your Supabase dashboard under Storage."
+          )
+        } else {
+          setErrorMsg(`Cover upload error: ${uploadError.message}`)
+        }
+        setLoading(false)
+        return
       } else {
         const { data: urlData } = supabase.storage
           .from('covers')

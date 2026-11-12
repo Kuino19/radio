@@ -18,8 +18,11 @@ import {
   Clock,
   Sparkles,
   ExternalLink,
+  Settings,
+  Pencil,
 } from 'lucide-react'
 import { AudioUploadModal } from '@/components/AudioUploadModal'
+import { EditChannelModal } from '@/components/EditChannelModal'
 import { SeriesManager } from '@/components/SeriesManager'
 import { CreatorMonetization } from '@/components/CreatorMonetization'
 import type { Channel, Series, Episode, MonetizationSettings, Tip } from '@/types/database'
@@ -33,12 +36,14 @@ interface CreatorDashboardHubProps {
 }
 
 export function CreatorDashboardHub({
-  channels,
+  channels: initialChannels,
   series: initialSeries,
   episodes: initialEpisodes,
   monetization,
   tips,
 }: CreatorDashboardHubProps) {
+  const [channels, setChannels] = useState<Channel[]>(initialChannels)
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
   const [activeTab, setActiveTab] = useState<'channels' | 'episodes' | 'series' | 'monetization'>('channels')
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [seriesList, setSeriesList] = useState<Series[]>(initialSeries)
@@ -149,9 +154,28 @@ export function CreatorDashboardHub({
                   <div className="space-y-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-center font-bold text-sm text-[#F2B544] shrink-0">
-                          {ch.name.slice(0, 2).toUpperCase()}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingChannel(ch)}
+                          className="relative group cursor-pointer focus:outline-none"
+                          title="Click to edit station & logo"
+                        >
+                          {ch.cover_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={ch.cover_url}
+                              alt={ch.name}
+                              className="w-12 h-12 rounded-2xl object-cover border border-[#2A2724] group-hover:border-[#F2B544] transition-all shrink-0 shadow-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] group-hover:border-[#F2B544] transition-all flex items-center justify-center font-bold text-sm text-[#F2B544] shrink-0 shadow-md">
+                              {ch.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="absolute -bottom-1 -right-1 bg-[#1A1816] border border-[#2A2724] rounded-full p-1 text-[#A39B91] group-hover:text-[#F2B544] group-hover:border-[#F2B544] transition-all shadow-sm">
+                            <Pencil className="w-2.5 h-2.5" />
+                          </span>
+                        </button>
                         <div>
                           <h3 className="font-display font-bold text-base text-[#F4EFE8]">
                             {ch.name}
@@ -209,6 +233,16 @@ export function CreatorDashboardHub({
                       <BarChart3 className="w-3.5 h-3.5 text-[#F2B544]" />
                       <span className="hidden sm:inline">Analytics</span>
                     </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => setEditingChannel(ch)}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#2A2724] bg-[#0E0D0C] py-2.5 px-3.5 text-xs font-medium text-[#F4EFE8] hover:border-[#F2B544]/60 hover:text-[#F2B544] transition-colors"
+                      title="Edit station details & cover art"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-[#A39B91]" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
 
                     <Link
                       href={`/c/${ch.slug}`}
@@ -338,6 +372,18 @@ export function CreatorDashboardHub({
           existingSeries={seriesList}
           onUploadSuccess={() => {
             window.location.reload()
+          }}
+        />
+      )}
+
+      {/* Edit Channel & Cover Art Modal */}
+      {editingChannel && (
+        <EditChannelModal
+          channel={editingChannel}
+          isOpen={!!editingChannel}
+          onClose={() => setEditingChannel(null)}
+          onUpdated={(updated) => {
+            setChannels((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
           }}
         />
       )}
