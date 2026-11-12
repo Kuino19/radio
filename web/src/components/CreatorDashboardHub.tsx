@@ -37,6 +37,7 @@ import { ScheduleShowModal } from '@/components/ScheduleShowModal'
 import { AudioUploadModal } from '@/components/AudioUploadModal'
 import { SeriesManager } from '@/components/SeriesManager'
 import { StudioCockpit } from '@/components/StudioCockpit'
+import { ShowNotesModal } from '@/components/ShowNotesModal'
 import type { Channel, Series, Episode, MonetizationSettings, Tip, Show, Recording, ScheduledShow } from '@/types/database'
 
 interface CreatorDashboardHubProps {
@@ -85,6 +86,8 @@ export function CreatorDashboardHub({
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [upcomingShows, setUpcomingShows] = useState<ScheduledShow[]>(initialUpcomingShows)
   const [seriesList, setSeriesList] = useState<Series[]>(initialSeries)
+  const [recordingsList, setRecordingsList] = useState<Recording[]>(recordings)
+  const [selectedRecForNotes, setSelectedRecForNotes] = useState<Recording | null>(null)
   const [currentDateTime, setCurrentDateTime] = useState<string>('')
 
   // Channel settings inline state
@@ -590,7 +593,7 @@ export function CreatorDashboardHub({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {recordings.slice(0, 4).map((r) => (
+                      {recordingsList.slice(0, 4).map((r) => (
                         <div
                           key={r.id}
                           className="p-3.5 rounded-2xl bg-[#0E0D0C] border border-[#2A2724] flex items-center justify-between gap-4"
@@ -601,7 +604,17 @@ export function CreatorDashboardHub({
                               {new Date(r.created_at).toLocaleDateString()} • {Math.floor((r.duration_seconds || 0) / 60)} mins
                             </span>
                           </div>
-                          <audio src={r.audio_url} controls className="h-7 max-w-[160px]" />
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRecForNotes(r)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F2B544]/15 border border-[#F2B544]/30 text-[11px] font-semibold text-[#F2B544] hover:bg-[#F2B544]/25 transition-colors cursor-pointer"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>{r.ai_processed ? 'Show Notes' : 'AI Notes'}</span>
+                            </button>
+                            <audio src={r.audio_url} controls className="h-7 max-w-[140px]" />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -691,15 +704,25 @@ export function CreatorDashboardHub({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recordings.map((r) => (
+                {recordingsList.map((r) => (
                   <div
                     key={r.id}
                     className="p-5 rounded-3xl bg-[#141210] border border-[#2A2724] space-y-3 flex flex-col justify-between shadow-lg"
                   >
                     <div className="space-y-1">
-                      <span className="text-[10px] font-mono text-[#3DBE7A] bg-[#3DBE7A]/10 border border-[#3DBE7A]/30 px-2 py-0.5 rounded-full uppercase">
-                        Recorded Broadcast
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-[#3DBE7A] bg-[#3DBE7A]/10 border border-[#3DBE7A]/30 px-2 py-0.5 rounded-full uppercase">
+                          Recorded Broadcast
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRecForNotes(r)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F2B544]/15 border border-[#F2B544]/30 text-xs font-semibold text-[#F2B544] hover:bg-[#F2B544]/25 transition-colors cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>{r.ai_processed ? 'Show Notes' : 'AI Show Notes'}</span>
+                        </button>
+                      </div>
                       <h4 className="font-bold text-sm text-[#F4EFE8] pt-1">{r.title}</h4>
                       <p className="text-[11px] font-mono text-[#A39B91]">
                         {new Date(r.created_at).toLocaleDateString()} • {Math.round((r.file_size_bytes || 0) / 1024 / 1024 * 10) / 10} MB
@@ -988,6 +1011,20 @@ export function CreatorDashboardHub({
           existingSeries={seriesList}
           onUploadSuccess={() => {
             setShowUploadModal(false)
+          }}
+        />
+      )}
+
+      {/* AI Show Notes & Chapters Modal */}
+      {selectedRecForNotes && (
+        <ShowNotesModal
+          recording={selectedRecForNotes}
+          isOpen={!!selectedRecForNotes}
+          onClose={() => setSelectedRecForNotes(null)}
+          canEdit={true}
+          onRecordingUpdated={(updated) => {
+            setRecordingsList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+            setSelectedRecForNotes(updated)
           }}
         />
       )}

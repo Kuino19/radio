@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
-import { Play, Pause, Clock, Disc, Trash2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { Play, Pause, Clock, Disc, Trash2, Sparkles } from 'lucide-react'
 import { usePlayer } from '@/context/PlayerContext'
 import { createClient } from '@/lib/supabase/client'
+import { ShowNotesModal } from '@/components/ShowNotesModal'
 import type { Recording } from '@/types/database'
 
 interface RecordingsListProps {
@@ -23,7 +24,8 @@ export function RecordingsList({
 }: RecordingsListProps) {
   const { currentTrack, isPlaying, playChannel, togglePlay } = usePlayer()
   const supabase = createClient()
-  const [list, setList] = React.useState<Recording[]>(recordings)
+  const [list, setList] = useState<Recording[]>(recordings)
+  const [selectedRecForNotes, setSelectedRecForNotes] = useState<Recording | null>(null)
 
   const formatDuration = (secs: number) => {
     const mins = Math.floor(secs / 60)
@@ -116,20 +118,50 @@ export function RecordingsList({
               </div>
             </div>
 
-            {/* Owner Actions */}
-            {isOwner && (
+            {/* Right Actions: AI Show Notes & Owner Delete */}
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => handleDelete(rec.id)}
-                className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
-                title="Delete recording"
+                onClick={() => setSelectedRecForNotes(rec)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  rec.ai_processed
+                    ? 'bg-[#F2B544]/15 text-[#F2B544] border border-[#F2B544]/30 hover:bg-[#F2B544]/25'
+                    : 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:text-white'
+                }`}
+                title="View AI Show Notes, Chapters & Transcript"
               >
-                <Trash2 className="h-4 w-4" />
+                <Sparkles className="h-3.5 w-3.5 text-[#F2B544]" />
+                <span className="hidden sm:inline">{rec.ai_processed ? 'Show Notes' : 'AI Notes'}</span>
               </button>
-            )}
+
+              {/* Owner Actions */}
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(rec.id)}
+                  className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
+                  title="Delete recording"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         )
       })}
+
+      {selectedRecForNotes && (
+        <ShowNotesModal
+          recording={selectedRecForNotes}
+          isOpen={!!selectedRecForNotes}
+          onClose={() => setSelectedRecForNotes(null)}
+          canEdit={isOwner}
+          onRecordingUpdated={(updated) => {
+            setList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+            setSelectedRecForNotes(updated)
+          }}
+        />
+      )}
     </div>
   )
 }

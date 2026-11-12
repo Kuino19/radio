@@ -136,6 +136,13 @@ export interface ScheduledShow {
   created_at: string
 }
 
+export interface Chapter {
+  timestamp_seconds: number
+  timestamp_label: string
+  title: string
+  summary: string
+}
+
 export interface Recording {
   id: string
   show_id?: string | null
@@ -145,6 +152,11 @@ export interface Recording {
   duration_seconds: number
   file_size_bytes: number
   created_at: string
+  summary?: string | null
+  transcript?: string | null
+  chapters?: Chapter[] | null
+  highlights?: string[] | null
+  ai_processed?: boolean
 }
 
 export interface ListenSession {
