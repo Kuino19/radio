@@ -1,10 +1,27 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Play, Mic, Radio, Volume2, ArrowRight, ShieldCheck, Zap, Users, MessageSquare, BarChart3, Wifi } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { Channel, ScheduledShow } from '@/types/database'
 
-export default async function HomePage() {
+interface HomePageProps {
+  searchParams?: Promise<{
+    code?: string
+    next?: string
+  }>
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const resolvedParams = searchParams ? await searchParams : {}
   const supabase = await createClient()
+
+  // If redirected from email confirmation with code parameter
+  if (resolvedParams.code) {
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(resolvedParams.code)
+    if (!exchangeError) {
+      redirect(resolvedParams.next || '/dashboard')
+    }
+  }
 
   // 1. Fetch live channels
   const { data: liveChannels } = await supabase
