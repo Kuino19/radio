@@ -25,6 +25,7 @@ import { AudioUploadModal } from '@/components/AudioUploadModal'
 import { EditChannelModal } from '@/components/EditChannelModal'
 import { SeriesManager } from '@/components/SeriesManager'
 import { CreatorMonetization } from '@/components/CreatorMonetization'
+import { ProgramScheduleCalendar } from '@/components/ProgramScheduleCalendar'
 import type { Channel, Series, Episode, MonetizationSettings, Tip } from '@/types/database'
 
 interface CreatorDashboardHubProps {
@@ -44,7 +45,7 @@ export function CreatorDashboardHub({
 }: CreatorDashboardHubProps) {
   const [channels, setChannels] = useState<Channel[]>(initialChannels)
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
-  const [activeTab, setActiveTab] = useState<'channels' | 'episodes' | 'series' | 'monetization'>('channels')
+  const [activeTab, setActiveTab] = useState<'channels' | 'schedule' | 'episodes' | 'series' | 'monetization'>('channels')
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [seriesList, setSeriesList] = useState<Series[]>(initialSeries)
   const [selectedChannelId, setSelectedChannelId] = useState<string>(channels[0]?.id || '')
@@ -96,6 +97,7 @@ export function CreatorDashboardHub({
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[#2A2724]">
         {[
           { id: 'channels', label: 'Broadcast Channels', icon: Radio },
+          { id: 'schedule', label: 'Program Schedule', icon: Calendar },
           { id: 'episodes', label: `Episodes (${initialEpisodes.length})`, icon: Play },
           { id: 'series', label: `Shows & Series (${seriesList.length})`, icon: Layers },
           { id: 'monetization', label: 'Monetization & Tips', icon: DollarSign },
@@ -236,6 +238,19 @@ export function CreatorDashboardHub({
 
                     <button
                       type="button"
+                      onClick={() => {
+                        setSelectedChannelId(ch.id)
+                        setActiveTab('schedule')
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#2A2724] bg-[#0E0D0C] py-2.5 px-3.5 text-xs font-medium text-[#F4EFE8] hover:border-[#F2B544]/60 hover:text-[#F2B544] transition-colors"
+                      title="Schedule future programs on calendar"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-[#F2B544]" />
+                      <span className="hidden sm:inline">Schedule</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setEditingChannel(ch)}
                       className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#2A2724] bg-[#0E0D0C] py-2.5 px-3.5 text-xs font-medium text-[#F4EFE8] hover:border-[#F2B544]/60 hover:text-[#F2B544] transition-colors"
                       title="Edit station details & cover art"
@@ -258,6 +273,15 @@ export function CreatorDashboardHub({
             </div>
           )}
         </div>
+      )}
+
+      {/* Tab: Program Schedule & Calendar */}
+      {activeTab === 'schedule' && currentChannel && (
+        <ProgramScheduleCalendar
+          channelId={currentChannel.id}
+          channelName={currentChannel.name}
+          channelSlug={currentChannel.slug}
+        />
       )}
 
       {/* Tab 2: Audio Episodes (Uploads, Scheduling & Paywall) */}

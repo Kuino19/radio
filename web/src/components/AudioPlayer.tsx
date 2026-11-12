@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { usePlayer } from '@/context/PlayerContext'
 import { SpectrumVisualizer } from '@/components/SpectrumVisualizer'
-import { TipHostModal } from '@/components/TipHostModal'
 import { SocialShareModal } from '@/components/SocialShareModal'
 import {
   Play,
@@ -12,13 +12,9 @@ import {
   VolumeX,
   Radio,
   Loader2,
-  RotateCcw,
   Wifi,
-  Sparkles,
   AlertCircle,
   Share2,
-  DollarSign,
-  Bookmark,
 } from 'lucide-react'
 
 interface AudioPlayerProps {
@@ -53,23 +49,79 @@ export function AudioPlayer({
     volume,
     isMuted,
     bufferHealth,
-    playbackRate,
     isHiFi,
-    currentDisplayName,
     playbackError,
     playChannel,
     togglePlay,
-    syncToLive,
     setVolume,
     toggleMute,
-    setPlaybackRate,
     toggleHiFi,
-    openGuestModal,
   } = usePlayer()
 
-  const [showTipModal, setShowTipModal] = useState(false)
+  const [currentLive, setCurrentLive] = useState(isLive)
+  const [currentShowId, setCurrentShowId] = useState(showId)
   const [showShareModal, setShowShareModal] = useState(false)
-  const [isBookmarked, setIsBookmarked] = useState(false)
+  const supabase = createClient()
+
+  useEffect(() => {
+    setCurrentLive(isLive)
+  }, [isLive])
+
+  useEffect(() => {
+    setCurrentShowId(showId)
+  }, [showId])
+
+  // Live status monitoring: listen to Supabase realtime and poll every 4s
+  useEffect(() => {
+    if (!channelId) return
+
+    const checkStatus = async () => {
+      try {
+        const { data } = await supabase
+          .from('channels')
+          .select('is_live')
+          .eq('id', channelId)
+          .single()
+
+        if (data && typeof data.is_live === 'boolean') {
+          if (data.is_live !== currentLive) {
+            setCurrentLive(data.is_live)
+            if (data.is_live) {
+              const { data: latestShow } = await supabase
+                .from('shows')
+                .select('id')
+                .eq('channel_id', channelId)
+                .order('started_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+              if (latestShow) setCurrentShowId(latestShow.id)
+            }
+          }
+        }
+      } catch {}
+    }
+
+    const interval = setInterval(checkStatus, 4000)
+
+    const sub = supabase
+      .channel(`player-channel-${channelId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'channels', filter: `id=eq.${channelId}` },
+        (payload) => {
+          const updated = payload.new as { is_live?: boolean }
+          if (typeof updated.is_live === 'boolean') {
+            setCurrentLive(updated.is_live)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(sub)
+    }
+  }, [channelId, currentLive, supabase])
 
   const isCurrentActiveChannel = currentTrack?.channelSlug === channelSlug
   const isPlaying = isCurrentActiveChannel && globalIsPlaying
@@ -78,26 +130,23 @@ export function AudioPlayer({
   const handlePlayClick = () => {
     playChannel({
       channelId,
-      showId: showId || null,
+      showId: currentShowId || null,
       channelName,
       channelSlug,
       streamUrl,
       coverUrl: coverUrl || null,
       hostName: hostName || null,
-      isLive,
+      isLive: currentLive,
     })
   }
 
-  // Automatically attempt playback when listener visits an active live stream
+  // Automatically attempt playback when stream is live
   useEffect(() => {
-    if (isLive && !isPlaying && !isLoading) {
+    if (currentLive && !isPlaying && !isLoading) {
       handlePlayClick()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLive, channelSlug])
-
-  const effectiveDisplayName = userDisplayName || currentDisplayName
-  const playbackRates = [0.75, 1, 1.25, 1.5, 2]
+  }, [currentLive, channelSlug])
 
   return (
     <>
@@ -133,7 +182,7 @@ export function AudioPlayer({
           </div>
 
           <div className="flex items-center gap-2">
-            {isLive ? (
+            {currentLive ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] px-3 py-1 text-xs font-bold text-[#FF4A3D] border border-[#FF4A3D]/30 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-[#FF4A3D] animate-pulse" />
                 LIVE
@@ -152,7 +201,7 @@ export function AudioPlayer({
           {!isPlaying && (
             <p className="text-xs text-[#A39B91] mt-3 font-medium flex items-center gap-1.5">
               <Wifi className="h-3.5 w-3.5 text-[#F2B544]" />
-              {isLive ? 'Tap play to tune in to live audio' : 'Station is currently offline'}
+              {currentLive ? 'Tap play to tune in to live audio' : 'Station is currently offline'}
             </p>
           )}
         </div>
@@ -162,19 +211,19 @@ export function AudioPlayer({
           <div className="rounded-2xl border border-[#2A2724] bg-[#0E0D0C] p-4 text-xs text-[#F4EFE8] space-y-1">
             <div className="flex items-center gap-2 font-bold text-[#F2B544]">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{isLive ? 'Connecting to live broadcast...' : 'Broadcast is currently offline'}</span>
+              <span>{currentLive ? 'Connecting to live broadcast...' : 'Broadcast is currently offline'}</span>
             </div>
             <p className="text-[11px] text-[#A39B91] leading-relaxed">
-              {isLive
+              {currentLive
                 ? 'Audio stream is initializing. If sound does not begin playing immediately, please tap the Play button below.'
                 : 'The station host is not broadcasting at this moment. You will be automatically connected when they go live.'}
             </p>
           </div>
         )}
 
-        {/* Stream Controls & Listener Tools */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-          {/* Play Button & Display Name */}
+        {/* Stream Controls */}
+        <div className="flex items-center justify-between gap-4 pt-2">
+          {/* Big Play / Pause Button & Status */}
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -196,110 +245,34 @@ export function AudioPlayer({
             </button>
 
             <div>
-              <span className="text-[11px] text-[#A39B91] block">Listening as</span>
-              <span className="text-xs font-semibold text-[#F4EFE8] flex items-center gap-1.5">
-                {effectiveDisplayName ? (
-                  <>
-                    <span>{effectiveDisplayName}</span>
-                    {!userLoggedIn && (
-                      <span className="text-[10px] text-[#F2B544] font-medium border border-[#F2B544]/40 bg-[#F2B544]/10 rounded-full px-2 py-0.2">
-                        guest
-                      </span>
-                    )}
-                  </>
+              <p className="text-sm sm:text-base font-bold text-[#F4EFE8] leading-tight">
+                {channelName}
+              </p>
+              <p className="text-xs text-[#A39B91] mt-0.5">
+                {currentLive ? (
+                  <span className="text-[#3DBE7A] font-medium flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3DBE7A] animate-pulse" />
+                    Live Audio Stream
+                  </span>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={openGuestModal}
-                    className="text-[#F2B544] hover:underline inline-flex items-center gap-1 font-medium"
-                  >
-                    <Sparkles className="h-3 w-3" /> Set your name
-                  </button>
+                  <span>Broadcast is offline</span>
                 )}
-              </span>
+              </p>
             </div>
           </div>
 
-          {/* Right tools: Speed, Tipping, Sharing & Volume */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {/* Speed Control (0.75x, 1x, 1.25x, 1.5x, 2x) */}
-            <div className="flex items-center bg-[#0E0D0C] rounded-full border border-[#2A2724] p-0.5">
-              {playbackRates.map((rate) => (
-                <button
-                  key={rate}
-                  type="button"
-                  onClick={() => setPlaybackRate(rate)}
-                  className={`px-2 py-1 rounded-full text-[10px] font-mono transition-colors ${
-                    playbackRate === rate
-                      ? 'bg-[#F2B544] text-[#0E0D0C] font-bold'
-                      : 'text-[#A39B91] hover:text-[#F4EFE8]'
-                  }`}
-                >
-                  {rate}x
-                </button>
-              ))}
-            </div>
-
-            {/* Tipping Button */}
-            {channelId && (
-              <button
-                type="button"
-                onClick={() => setShowTipModal(true)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#F2B544]/15 border border-[#F2B544]/40 px-3 py-1.5 text-xs font-bold text-[#F2B544] hover:bg-[#F2B544]/25 transition-all shadow-sm"
-                title="Send a tip to the host"
-              >
-                <DollarSign className="w-3.5 h-3.5" />
-                <span>Tip</span>
-              </button>
-            )}
-
-            {/* Social Share Button (Twitter/LinkedIn) */}
-            <button
-              type="button"
-              onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center gap-1 rounded-full bg-[#0E0D0C] border border-[#2A2724] px-3 py-1.5 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544]/60 transition-colors"
-              title="Share broadcast on social media"
-            >
-              <Share2 className="w-3.5 h-3.5 text-[#F2B544]" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
-
-            {/* Bookmark / Favorite */}
-            <button
-              type="button"
-              onClick={() => setIsBookmarked(!isBookmarked)}
-              className={`p-2 rounded-full border transition-colors ${
-                isBookmarked
-                  ? 'border-[#F2B544] bg-[#F2B544]/10 text-[#F2B544]'
-                  : 'border-[#2A2724] bg-[#0E0D0C] text-[#A39B91] hover:text-[#F4EFE8]'
-              }`}
-              title={isBookmarked ? 'Saved to Favorites' : 'Save to Favorites'}
-            >
-              <Bookmark className="w-4 h-4 fill-current" />
-            </button>
-
-            {/* Live Sync Action */}
-            {isPlaying && (
-              <button
-                type="button"
-                onClick={syncToLive}
-                className="inline-flex items-center gap-1 text-[11px] font-mono text-[#A39B91] hover:text-[#F4EFE8] px-2.5 py-1.5 rounded-full border border-[#2A2724] bg-[#0E0D0C] transition-colors"
-                title="Resync to live stream edge"
-              >
-                <RotateCcw className="h-3 w-3 text-[#F2B544]" />
-                <span>Sync</span>
-              </button>
-            )}
-
+          {/* Right Tools: Clean Volume & Share Only */}
+          <div className="flex items-center gap-2.5">
             {/* Volume Control */}
-            <div className="flex items-center gap-2 bg-[#0E0D0C] px-3 py-1.5 rounded-full border border-[#2A2724]">
+            <div className="flex items-center gap-2 bg-[#0E0D0C] px-3.5 py-2 rounded-full border border-[#2A2724]">
               <button
                 type="button"
                 onClick={toggleMute}
                 className="text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
+                title={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted || volume === 0 ? (
-                  <VolumeX className="h-4 w-4" />
+                  <VolumeX className="h-4 w-4 text-[#FF4A3D]" />
                 ) : (
                   <Volume2 className="h-4 w-4" />
                 )}
@@ -311,9 +284,20 @@ export function AudioPlayer({
                 step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="h-1.5 w-14 accent-[#F2B544] bg-[#2A2724] rounded-lg cursor-pointer"
+                className="h-1 w-16 sm:w-20 accent-[#F2B544] cursor-pointer"
               />
             </div>
+
+            {/* Share Button */}
+            <button
+              type="button"
+              onClick={() => setShowShareModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] border border-[#2A2724] px-4 py-2 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544]/60 transition-colors"
+              title="Share broadcast"
+            >
+              <Share2 className="w-3.5 h-3.5 text-[#F2B544]" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
           </div>
         </div>
 
@@ -324,18 +308,6 @@ export function AudioPlayer({
           </div>
         )}
       </div>
-
-      {/* Tip Host Modal */}
-      {channelId && (
-        <TipHostModal
-          isOpen={showTipModal}
-          onClose={() => setShowTipModal(false)}
-          channelId={channelId}
-          channelName={channelName}
-          hostName={hostName}
-          currentUserDisplayName={effectiveDisplayName}
-        />
-      )}
 
       {/* Social Share Modal */}
       <SocialShareModal

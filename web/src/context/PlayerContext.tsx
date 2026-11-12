@@ -73,12 +73,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (saved) setCurrentDisplayName(saved)
   }, [])
 
-  // 30-second listener tracking heartbeat loop
+  // 15-second listener tracking heartbeat loop
   useEffect(() => {
-    if (!isPlaying || !currentTrack?.channelId || !currentDisplayName) return
+    if (!isPlaying || !currentTrack?.channelId) return
 
     const sendHeartbeat = async () => {
       try {
+        const name = currentDisplayName || getSavedGuestName() || 'Guest Listener'
         const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
         await fetch('/api/heartbeat', {
           method: 'POST',
@@ -87,7 +88,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             channelId: currentTrack.channelId,
             showId: currentTrack.showId || null,
             anonId: getOrCreateAnonId(),
-            displayName: currentDisplayName,
+            displayName: name,
             deviceType: isMobile ? 'phone' : 'desktop',
             referrer: typeof document !== 'undefined' ? document.referrer || 'Direct' : 'Direct',
           }),
@@ -98,7 +99,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     sendHeartbeat()
-    const interval = setInterval(sendHeartbeat, 30000)
+    const interval = setInterval(sendHeartbeat, 15000)
 
     return () => clearInterval(interval)
   }, [isPlaying, currentTrack?.channelId, currentTrack?.showId, currentDisplayName])

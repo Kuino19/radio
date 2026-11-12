@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import {
   AreaChart,
   Area,
@@ -23,6 +24,7 @@ import {
   Share2,
   Radio,
   Calendar,
+  ChevronRight,
 } from 'lucide-react'
 import type { Channel, Show, ListenSession } from '@/types/database'
 
@@ -383,32 +385,49 @@ export function AnalyticsCharts({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-zinc-800 text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
+              <thead className="border-b border-[#2A2724] text-[11px] uppercase tracking-wider text-[#A39B91] font-semibold">
                 <tr>
                   <th className="pb-3">Show Title</th>
                   <th className="pb-3">Date</th>
                   <th className="pb-3">Peak Listeners</th>
                   <th className="pb-3">Status</th>
+                  <th className="pb-3 text-right">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-[#2A2724]/60">
                 {shows.map((show) => (
-                  <tr key={show.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="py-3 font-semibold text-white">{show.title}</td>
-                    <td className="py-3 text-zinc-400">
+                  <tr key={show.id} className="hover:bg-[#1A1816] transition-colors group">
+                    <td className="py-3 font-semibold text-[#F4EFE8]">
+                      <Link
+                        href={`/dashboard/analytics/${channel.slug}/show/${show.id}`}
+                        className="hover:text-[#F2B544] transition-colors"
+                      >
+                        {show.title}
+                      </Link>
+                    </td>
+                    <td className="py-3 text-[#A39B91]">
                       {new Date(show.started_at).toLocaleDateString()}
                     </td>
-                    <td className="py-3 font-bold text-red-400">{show.peak_listeners}</td>
+                    <td className="py-3 font-mono font-bold text-[#F2B544]">{show.peak_listeners}</td>
                     <td className="py-3">
                       {show.ended_at ? (
-                        <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                        <span className="rounded-full bg-[#0E0D0C] border border-[#2A2724] px-2.5 py-0.5 text-[10px] text-[#A39B91]">
                           Completed
                         </span>
                       ) : (
-                        <span className="rounded bg-red-600/20 text-red-400 border border-red-500/30 px-2 py-0.5 text-[10px] font-bold animate-pulse">
+                        <span className="rounded-full bg-[#FF4A3D]/20 text-[#FF4A3D] border border-[#FF4A3D]/40 px-2.5 py-0.5 text-[10px] font-bold animate-pulse">
                           Live Now
                         </span>
                       )}
+                    </td>
+                    <td className="py-3 text-right">
+                      <Link
+                        href={`/dashboard/analytics/${channel.slug}/show/${show.id}`}
+                        className="inline-flex items-center gap-1 text-[11px] text-[#F2B544] hover:underline font-semibold"
+                      >
+                        <span>View Analytics</span>
+                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
                     </td>
                   </tr>
                 ))}

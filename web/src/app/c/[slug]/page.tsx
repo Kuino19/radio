@@ -9,6 +9,9 @@ import { RecordingsList } from '@/components/RecordingsList'
 import { Users, Calendar, Radio, Clock, ShieldAlert, Sparkles, Bell } from 'lucide-react'
 import type { Channel, Profile, Show, ScheduledShow, Recording } from '@/types/database'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface ChannelPageProps {
   params: Promise<{
     slug: string
