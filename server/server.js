@@ -63,6 +63,17 @@ const wss = new WebSocketServer({
 // Map<string, BroadcastSession>
 const activeBroadcasts = new Map()
 
+// Reset any dangling live channels on server boot
+async function resetDanglingChannels() {
+  try {
+    await supabase.from('channels').update({ is_live: false, current_listeners: 0 }).eq('is_live', true)
+    console.log('[INIT] Checked and cleaned up stale live channels')
+  } catch (err) {
+    console.warn('[INIT] Channel cleanup warning:', err.message)
+  }
+}
+resetDanglingChannels()
+
 // Timeout helper to prevent hanging promises
 function withTimeout(promise, ms, label = 'Operation') {
   return Promise.race([
