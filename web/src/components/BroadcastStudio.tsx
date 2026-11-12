@@ -13,6 +13,7 @@ import {
   Share2,
   Check,
   AlertTriangle,
+  AlertCircle,
   RotateCcw,
   Square,
   Users,
@@ -237,6 +238,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
 
   // 2. START BROADCAST (GO LIVE)
   const handleGoLive = async () => {
+    setMicError(null)
     if (!mediaStreamRef.current) {
       setMicError('Please enable microphone access before going live.')
       return
@@ -538,6 +540,21 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                 )}
               </div>
             </div>
+
+            {/* Error Feedback Banner */}
+            {micError && (
+              <div className="flex items-center gap-2.5 rounded-2xl border border-[#FF4A3D]/40 bg-[#FF4A3D]/10 p-3.5 text-xs text-[#FF4A3D]">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{micError}</span>
+                <button
+                  type="button"
+                  onClick={() => setMicError(null)}
+                  className="text-[#FF4A3D] hover:underline font-semibold ml-2"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
             {/* Show Title */}
             <div className="space-y-1.5">
