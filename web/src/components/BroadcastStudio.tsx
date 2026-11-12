@@ -268,14 +268,41 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
       )
     }
 
+    let connectTimeout: NodeJS.Timeout | null = setTimeout(() => {
+      setMicError('Streaming server connection timed out. Please check your network and try again.')
+      cleanupBroadcast()
+      setStudioState('ready')
+    }, 15000)
+
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
-        if (msg.status === 'ready' || msg.status === 'live') {
+        const isLive =
+          msg.type === 'live_started' ||
+          msg.type === 'ready' ||
+          msg.status === 'ready' ||
+          msg.status === 'live' ||
+          msg.status === 'live_started'
+
+        const isError =
+          msg.type === 'error' ||
+          msg.type === 'forbidden' ||
+          msg.type === 'reconnect_failed' ||
+          msg.status === 'error'
+
+        if (isLive) {
+          if (connectTimeout) {
+            clearTimeout(connectTimeout)
+            connectTimeout = null
+          }
           setStudioState('on_air')
           setStatusMessage('')
           startMediaRecorder(ws)
-        } else if (msg.status === 'error') {
+        } else if (isError) {
+          if (connectTimeout) {
+            clearTimeout(connectTimeout)
+            connectTimeout = null
+          }
           setMicError(msg.message || 'Broadcast initialization failed.')
           cleanupBroadcast()
           setStudioState('ready')
@@ -286,6 +313,10 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
     }
 
     ws.onerror = (err) => {
+      if (connectTimeout) {
+        clearTimeout(connectTimeout)
+        connectTimeout = null
+      }
       console.warn('WS error:', err)
       if (studioState === 'on_air') {
         attemptReconnect()
@@ -296,6 +327,10 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
     }
 
     ws.onclose = () => {
+      if (connectTimeout) {
+        clearTimeout(connectTimeout)
+        connectTimeout = null
+      }
       if (studioState === 'on_air') {
         attemptReconnect()
       }
@@ -378,14 +413,21 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
-          if (msg.status === 'resumed' || msg.status === 'ready' || msg.status === 'live') {
+          const isResumed =
+            msg.type === 'reconnected' ||
+            msg.type === 'live_started' ||
+            msg.status === 'resumed' ||
+            msg.status === 'ready' ||
+            msg.status === 'live'
+
+          if (isResumed) {
             if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
             setStudioState('on_air')
             startMediaRecorder(ws)
           }
         } catch (e) {
-          console.error(e)
+          console.error('WS reconnect error:', e)
         }
       }
     }
