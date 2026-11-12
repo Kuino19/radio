@@ -23,6 +23,9 @@ import {
   Sparkles,
   Smartphone,
   ChevronDown,
+  ArrowLeft,
+  BarChart3,
+  ExternalLink,
 } from 'lucide-react'
 import type { Channel } from '@/types/database'
 
@@ -550,6 +553,35 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 space-y-6">
+      {/* Top Breadcrumb & Navigation to Creator Dashboard */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-xs font-bold text-[#F4EFE8] hover:text-[#F2B544] transition-colors bg-[#1A1816] border border-[#2A2724] px-4 py-2 rounded-full shadow-sm hover:border-[#F2B544]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-[#F2B544]" />
+          <span>← Back to Creator Dashboard</span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dashboard/analytics/${channel.slug}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#1A1816] border border-[#2A2724] text-xs font-semibold text-[#A39B91] hover:text-[#F4EFE8] hover:border-[#F2B544] transition-colors"
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-[#F2B544]" />
+            <span>Show Analytics</span>
+          </Link>
+          <Link
+            href={`/c/${channel.slug}`}
+            target="_blank"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#1A1816] border border-[#2A2724] text-xs font-semibold text-[#A39B91] hover:text-[#F4EFE8] hover:border-[#F2B544] transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-[#F2B544]" />
+            <span>Listener View</span>
+          </Link>
+        </div>
+      </div>
+
       {/* 2-Column Console Layout (Matching PDF Page 2 on Mobile, Page 4 on Desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left 2 Columns: Broadcast Console Dial & Controls */}

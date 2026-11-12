@@ -42,12 +42,21 @@ export async function Navbar() {
             >
               Library
             </Link>
-            <Link
-              href="/#for-hosts"
-              className="text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
-            >
-              For hosts
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="text-[#F4EFE8] font-bold text-[#F2B544] hover:brightness-110 transition-colors flex items-center gap-1.5"
+              >
+                <span>Dashboard</span>
+              </Link>
+            ) : (
+              <Link
+                href="/#for-hosts"
+                className="text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
+              >
+                For hosts
+              </Link>
+            )}
           </nav>
         </div>
 
