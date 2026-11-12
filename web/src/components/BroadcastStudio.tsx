@@ -300,6 +300,15 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const handleGoLive = async () => {
     setMicError(null)
     if (!mediaStreamRef.current) {
+      try {
+        await initMicrophone(selectedDeviceId)
+      } catch (err) {
+        setMicError('Please allow microphone permissions to broadcast.')
+        return
+      }
+    }
+
+    if (!mediaStreamRef.current) {
       setMicError('Please enable microphone access before going live.')
       return
     }
@@ -747,8 +756,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                 <button
                   type="button"
                   onClick={handleGoLive}
-                  disabled={!!micError}
-                  className="w-48 h-48 sm:w-52 sm:h-52 rounded-full bg-[#FF4A3D] text-white flex flex-col items-center justify-center shadow-[0_4px_30px_rgba(255,74,61,0.4)] hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed group select-none"
+                  className="w-48 h-48 sm:w-52 sm:h-52 rounded-full bg-[#FF4A3D] text-white flex flex-col items-center justify-center shadow-[0_4px_30px_rgba(255,74,61,0.4)] hover:scale-105 active:scale-95 transition-transform group select-none"
                 >
                   <Radio className="w-10 h-10 mb-2 group-hover:animate-pulse" />
                   <span className="font-display font-black text-2xl tracking-tight">
