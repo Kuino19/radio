@@ -140,7 +140,7 @@ export function ShowNotesModal({
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-flex items-center gap-1 rounded-full bg-[#F2B544]/15 border border-[#F2B544]/30 px-2.5 py-0.5 text-[10px] font-bold text-[#F2B544]">
                 <Sparkles className="w-3 h-3" />
-                AI SHOW NOTES & CHAPTERS
+                GROQ WHISPER & LLAMA 3.3
               </span>
               <span className="text-[11px] font-mono text-[#A39B91]">
                 {Math.floor((recording.duration_seconds || 0) / 60)} mins
@@ -225,29 +225,41 @@ export function ShowNotesModal({
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
           {/* Error Message */}
           {processError && (
-            <div className="rounded-2xl border border-[#FF4A3D]/40 bg-[#FF4A3D]/10 p-3.5 text-xs text-[#FF4A3D] flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="font-semibold">{processError}</p>
-                {showKeyInput && (
-                  <div className="mt-2.5 space-y-2">
-                    <input
-                      type="password"
-                      value={customKey}
-                      onChange={(e) => setCustomKey(e.target.value)}
-                      placeholder="Enter Gemini API key (AIzaSy...)"
-                      className="w-full rounded-xl bg-[#0E0D0C] border border-[#2A2724] px-3 py-1.5 text-xs text-[#F4EFE8] focus:outline-none focus:border-[#F2B544]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleGenerateAI}
-                      className="rounded-full bg-[#F2B544] px-4 py-1.5 text-xs font-bold text-[#0E0D0C]"
-                    >
-                      Retry with Key
-                    </button>
-                  </div>
-                )}
+            <div className="rounded-2xl border border-[#FF4A3D]/40 bg-[#FF4A3D]/10 p-3.5 text-xs text-[#FF4A3D] space-y-2">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <p className="font-semibold flex-1">{processError}</p>
               </div>
+              {showKeyInput && (
+                <div className="pt-1 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-[#A39B91]">Groq API Key:</span>
+                    <a
+                      href="https://console.groq.com/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#F2B544] hover:underline font-semibold"
+                    >
+                      Get free key at console.groq.com →
+                    </a>
+                  </div>
+                  <input
+                    type="password"
+                    value={customKey}
+                    onChange={(e) => setCustomKey(e.target.value)}
+                    placeholder="Enter Groq API key (starts with gsk_...)"
+                    className="w-full rounded-xl bg-[#0E0D0C] border border-[#2A2724] px-3.5 py-2 text-xs text-[#F4EFE8] focus:outline-none focus:border-[#F2B544]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGenerateAI}
+                    disabled={isProcessing}
+                    className="rounded-full bg-[#F2B544] px-4 py-1.5 text-xs font-bold text-[#0E0D0C] hover:brightness-105 active:scale-95 transition-all cursor-pointer"
+                  >
+                    {isProcessing ? 'Transcribing with Groq...' : 'Transcribe with Groq Key'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -257,10 +269,10 @@ export function ShowNotesModal({
               <Sparkles className="w-8 h-8 text-[#F2B544] mx-auto animate-pulse" />
               <div className="space-y-1">
                 <h3 className="font-display font-bold text-base text-[#F4EFE8]">
-                  AI Show Notes Not Generated Yet
+                  AI Show Notes & Chapters
                 </h3>
                 <p className="text-xs text-[#A39B91] max-w-md mx-auto">
-                  Automatically transcribe this broadcast, extract key takeaways, and create clickable chapter markers using Gemini AI.
+                  Powered by <strong className="text-[#F4EFE8]">Groq Whisper Large v3</strong> for near-instant transcription and <strong className="text-[#F4EFE8]">Llama 3.3 70B</strong> for executive summaries and chapter markers.
                 </p>
               </div>
 
@@ -274,12 +286,12 @@ export function ShowNotesModal({
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Transcribing & Chaptering Audio...</span>
+                      <span>Transcribing at 200x speed with Groq Whisper...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>Generate AI Notes & Chapters</span>
+                      <span>Transcribe & Chapter with Groq AI</span>
                     </>
                   )}
                 </button>
