@@ -62,6 +62,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const liveTimerRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectingRef = useRef(false)
+  const broadcastStartedRef = useRef(false)
 
   // 1. Initialize microphone with safe error handling
   const initMicrophone = useCallback(async (deviceId?: string) => {
@@ -322,6 +324,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             connectTimeout = null
           }
           setStudioState('on_air')
+          broadcastStartedRef.current = true
+          reconnectingRef.current = false
           setStatusMessage('')
           if (typeof msg.showId === 'string') setCurrentShowId(msg.showId)
           startMediaRecorder(ws)
@@ -344,7 +348,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
         clearTimeout(connectTimeout)
         connectTimeout = null
       }
-      if (studioState === 'on_air') {
+      if (broadcastStartedRef.current) {
         attemptReconnect()
       } else {
         setMicError('Could not establish connection to streaming server.')
@@ -357,7 +361,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
         clearTimeout(connectTimeout)
         connectTimeout = null
       }
-      if (studioState === 'on_air') {
+      if (broadcastStartedRef.current) {
         attemptReconnect()
       }
     }
@@ -406,7 +410,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
 
   // 4. Automatic reconnection within 30 seconds
   const attemptReconnect = () => {
-    if (studioState === 'reconnecting') return
+    if (reconnectingRef.current) return
+    reconnectingRef.current = true
     setStudioState('reconnecting')
     setReconnectCountdown(30)
 
@@ -414,6 +419,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
       setReconnectCountdown((prev) => {
         if (prev <= 1) {
           if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
+          reconnectingRef.current = false
+          broadcastStartedRef.current = false
           setStudioState('ended')
           setMicError('Broadcast connection lost. Recording finalized.')
           return 0
@@ -423,14 +430,22 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     }, 1000)
 
     const tryConnect = async () => {
+      if (!reconnectingRef.current) return
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
+      if (!session?.access_token) {
+        reconnectTimeoutRef.current = setTimeout(tryConnect, 2000)
+        return
+      }
 
       const wsUrl = process.env.NEXT_PUBLIC_WS_STREAM_URL || 'wss://radio.goanitech.com/ws'
       const ws = new WebSocket(wsUrl)
       socketRef.current = ws
 
       ws.onopen = () => {
+        if (!reconnectingRef.current) {
+          ws.close()
+          return
+        }
         ws.send(
           JSON.stringify({
             action: 'reconnect',
@@ -451,15 +466,23 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             msg.status === 'live'
 
           if (isResumed) {
+            reconnectingRef.current = false
+            broadcastStartedRef.current = true
             if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
             if (typeof msg.showId === 'string') setCurrentShowId(msg.showId)
             setStudioState('on_air')
             startMediaRecorder(ws)
+          } else if (msg.type === 'reconnect_failed' || msg.type === 'error' || msg.status === 'error') {
+            ws.close()
           }
         } catch (e) {
           console.error('WS reconnect error:', e)
         }
+      }
+
+      ws.onclose = () => {
+        if (reconnectingRef.current) reconnectTimeoutRef.current = setTimeout(tryConnect, 2000)
       }
     }
 
@@ -468,6 +491,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
 
   // 5. Clean up broadcast
   const cleanupBroadcast = () => {
+    broadcastStartedRef.current = false
+    reconnectingRef.current = false
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop()
@@ -476,7 +501,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     if (socketRef.current) {
       try {
         if (socketRef.current.readyState === WebSocket.OPEN) {
-          socketRef.current.send(JSON.stringify({ action: 'end' }))
+          socketRef.current.send(JSON.stringify({ action: 'stop' }))
         }
         socketRef.current.close()
       } catch {}
