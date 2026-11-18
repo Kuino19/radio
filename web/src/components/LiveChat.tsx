@@ -19,6 +19,7 @@ import type { ChatMessage } from '@/types/database'
 interface LiveChatProps {
   channelId: string
   channelSlug: string
+  showId?: string | null
   channelOwnerId: string
   currentUserId?: string | null
   currentUserDisplayName?: string | null
@@ -28,6 +29,7 @@ interface LiveChatProps {
 export function LiveChat({
   channelId,
   channelSlug,
+  showId,
   channelOwnerId,
   currentUserId,
   currentUserDisplayName,
@@ -75,11 +77,13 @@ export function LiveChat({
       setLoading(true)
 
       // Fetch last 50 messages
-      const { data, error } = await supabase
+      let messageQuery = supabase
         .from('chat_messages')
         .select('*')
         .eq('channel_id', channelId)
         .eq('deleted', false)
+      if (showId) messageQuery = messageQuery.eq('show_id', showId)
+      const { data, error } = await messageQuery
         .order('created_at', { ascending: true })
         .limit(50)
 
@@ -109,7 +113,7 @@ export function LiveChat({
     return () => {
       isMounted = false
     }
-  }, [channelId, currentUserId, anonId, supabase, scrollToBottom])
+  }, [channelId, currentUserId, anonId, showId, supabase, scrollToBottom])
 
   // 2. Realtime Subscription
   useEffect(() => {
@@ -125,7 +129,7 @@ export function LiveChat({
         },
         (payload) => {
           const newMsg = payload.new as ChatMessage
-          if (!newMsg.deleted) {
+          if (!newMsg.deleted && (!showId || newMsg.show_id === showId)) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === newMsg.id)) return prev
               return [...prev, newMsg]
@@ -144,6 +148,7 @@ export function LiveChat({
         },
         (payload) => {
           const updatedMsg = payload.new as ChatMessage
+          if (showId && updatedMsg.show_id !== showId) return
           if (updatedMsg.deleted) {
             // Remove deleted messages from active view
             setMessages((prev) => prev.filter((m) => m.id !== updatedMsg.id))
@@ -159,7 +164,7 @@ export function LiveChat({
     return () => {
       supabase.removeChannel(channelSub)
     }
-  }, [channelId, supabase, scrollToBottom])
+  }, [channelId, showId, supabase, scrollToBottom])
 
   // Cooldown countdown timer (rate limit 2 seconds)
   useEffect(() => {
@@ -200,6 +205,7 @@ export function LiveChat({
 
     const payload: Partial<ChatMessage> = {
       channel_id: channelId,
+      show_id: showId || null,
       display_name: effectiveDisplayName,
       body: trimmed,
       user_id: currentUserId || null,
@@ -248,7 +254,7 @@ export function LiveChat({
   }
 
   return (
-    <div className="flex flex-col h-[460px] sm:h-[520px] rounded-2xl border border-zinc-800 bg-zinc-900/70 backdrop-blur-xl shadow-xl overflow-hidden">
+    <div className="flex h-[min(64vh,520px)] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-xl backdrop-blur-xl sm:h-[520px]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 bg-zinc-950/60">
         <div className="flex items-center gap-2">
@@ -318,7 +324,7 @@ export function LiveChat({
                     )}
                   </div>
 
-                  <span className="text-[10px] text-zinc-500">
+                  <span className="text-xs text-zinc-500">
                     {new Date(msg.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -326,7 +332,7 @@ export function LiveChat({
                   </span>
                 </div>
 
-                <p className="text-xs text-zinc-300 mt-1 leading-relaxed break-words">
+                <p className="mt-1 break-words text-sm leading-relaxed text-zinc-300">
                   {msg.body}
                 </p>
 
@@ -403,7 +409,7 @@ export function LiveChat({
                     ? 'Chat disabled (blocked)'
                     : `Message as ${effectiveDisplayName}...`
                 }
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:opacity-50 transition-colors"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-base text-white placeholder-zinc-500 transition-colors focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:opacity-50 sm:text-xs"
               />
               <button
                 type="submit"

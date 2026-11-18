@@ -86,6 +86,9 @@ app.post('/api/heartbeat', async (req, res) => {
     if (!channelId || !displayName) {
       return res.status(400).json({ error: 'Missing channelId or displayName' })
     }
+    if (!userId && !anonId) {
+      return res.status(400).json({ error: 'Missing listener identity' })
+    }
 
     const ninetySecondsAgo = new Date(Date.now() - 90 * 1000).toISOString()
     const nowIso = new Date().toISOString()
@@ -100,6 +103,8 @@ app.post('/api/heartbeat', async (req, res) => {
         .eq('user_id', userId)
         .gt('last_seen_at', ninetySecondsAgo)
         .is('left_at', null)
+        .order('last_seen_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
       existing = data
     } else if (anonId) {
@@ -110,17 +115,20 @@ app.post('/api/heartbeat', async (req, res) => {
         .eq('anon_id', anonId)
         .gt('last_seen_at', ninetySecondsAgo)
         .is('left_at', null)
+        .order('last_seen_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
       existing = data
     }
 
     if (existing) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('listen_sessions')
         .update({ last_seen_at: nowIso, display_name: displayName })
         .eq('id', existing.id)
+      if (updateError) throw updateError
     } else {
-      await supabase.from('listen_sessions').insert({
+      const { error: insertError } = await supabase.from('listen_sessions').insert({
         channel_id: channelId,
         show_id: showId || null,
         user_id: userId || null,
@@ -132,20 +140,26 @@ app.post('/api/heartbeat', async (req, res) => {
         device_type: deviceType || 'desktop',
         referrer: referrer || 'Direct',
       })
+      if (insertError) throw insertError
     }
 
     // 2. Count active sessions
-    const { count: activeCount } = await supabase
+    const { count: activeCount, error: countError } = await supabase
       .from('listen_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('channel_id', channelId)
       .gt('last_seen_at', ninetySecondsAgo)
       .is('left_at', null)
+    if (countError) throw countError
 
-    const finalCount = activeCount || 1
+    const finalCount = activeCount ?? 0
 
     // 3. Update channel listener count
-    await supabase.from('channels').update({ current_listeners: finalCount }).eq('id', channelId)
+    const { error: channelUpdateError } = await supabase
+      .from('channels')
+      .update({ current_listeners: finalCount })
+      .eq('id', channelId)
+    if (channelUpdateError) throw channelUpdateError
 
     // 4. Update show peak
     if (showId) {
@@ -388,6 +402,8 @@ function spawnLiveFfmpeg(channelSlug) {
     'webm',
     '-i',
     'pipe:0',
+    '-af',
+    'highpass=f=80,lowpass=f=9000,afftdn=nr=10:nf=-30:tn=1',
     '-c:a',
     'libmp3lame',
     '-b:a',
@@ -443,6 +459,8 @@ function spawnRecordingFfmpeg(showId, channelSlug) {
       'webm',
       '-i',
       'pipe:0',
+      '-af',
+      'highpass=f=80,lowpass=f=9000,afftdn=nr=10:nf=-30:tn=1',
       '-c:a',
       'libmp3lame',
       '-b:a',

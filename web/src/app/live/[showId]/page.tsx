@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Radio, Users } from 'lucide-react'
+import { ArrowLeft, Radio } from 'lucide-react'
 import { AudioPlayer } from '@/components/AudioPlayer'
-import { NativeShowAudio } from '@/components/NativeShowAudio'
+import { LiveShowExperience } from '@/components/LiveShowExperience'
 import { createClient } from '@/lib/supabase/server'
 import type { Channel, Profile, Recording, Show } from '@/types/database'
 
@@ -37,6 +37,9 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
     supabase.from('profiles').select('*').eq('id', channel.owner_id).maybeSingle(),
     supabase.auth.getUser(),
   ])
+  const { data: currentProfileData } = user
+    ? await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
+    : { data: null }
   const host = hostData as Profile | null
   const streamBaseUrl = process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com'
   const isLive = channel.is_live && !show.ended_at
@@ -69,7 +72,6 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
             <h1 className="mt-1 truncate font-display text-xl font-bold text-[#F4EFE8] sm:text-2xl">{show.title}</h1>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-[#A39B91]">
               {host?.display_name || 'LISNR'} · {channel.name}
-              {isLive && <><span>·</span><Users className="h-3 w-3" />{channel.current_listeners} listening</>}
             </p>
           </div>
         </div>
@@ -90,15 +92,19 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
             showSpecific
           />
         </div>
-        <div className="md:hidden">
-          <NativeShowAudio
+        <LiveShowExperience
             channelId={channel.id}
+            channelSlug={channel.slug}
+            channelOwnerId={channel.owner_id}
             showId={show.id}
+            initialListeners={channel.current_listeners || 0}
             isLive={isLive}
             streamUrl={`${streamBaseUrl}/${channel.slug}`}
             recordingUrl={recording?.audio_url}
+            currentUserId={user?.id || null}
+            currentUserDisplayName={currentProfileData?.display_name || user?.email?.split('@')[0] || null}
+            isOwner={user?.id === channel.owner_id}
           />
-        </div>
       </section>
     </main>
   )

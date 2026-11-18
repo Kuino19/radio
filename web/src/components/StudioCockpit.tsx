@@ -212,9 +212,9 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     const fetchLiveStats = async () => {
       try {
         const ninetySecondsAgo = new Date(Date.now() - 90000).toISOString()
-        const { data: sessions } = await supabase
+        const { data: sessions, count } = await supabase
           .from('listen_sessions')
-          .select('id, display_name, is_guest')
+          .select('id, display_name, is_guest', { count: 'exact' })
           .eq('channel_id', channel.id)
           .gt('last_seen_at', ninetySecondsAgo)
           .is('left_at', null)
@@ -228,21 +228,9 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             isGuest: !!s.is_guest,
           }))
           setActiveListenerList(list)
-          if (list.length > 0) {
-            setCurrentListeners(list.length)
-            setPeakListeners((prev) => Math.max(prev, list.length))
-          }
-        }
-
-        const { data: ch } = await supabase
-          .from('channels')
-          .select('current_listeners')
-          .eq('id', channel.id)
-          .single()
-
-        if (ch && typeof ch.current_listeners === 'number') {
-          setCurrentListeners((prev) => Math.max(prev, ch.current_listeners))
-          setPeakListeners((prev) => Math.max(prev, ch.current_listeners))
+          const activeCount = count ?? list.length
+          setCurrentListeners(activeCount)
+          setPeakListeners((prev) => Math.max(prev, activeCount))
         }
       } catch (err) {
         console.warn('Analytics poll error:', err)

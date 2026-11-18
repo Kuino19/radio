@@ -8,7 +8,6 @@ export async function POST(request: Request) {
       channelId,
       showId,
       anonId,
-      userId,
       displayName,
       deviceType: clientDevice,
       referrer: clientReferrer,
@@ -16,6 +15,13 @@ export async function POST(request: Request) {
 
     if (!channelId || !displayName) {
       return NextResponse.json({ error: 'Missing channelId or displayName' }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const userId = user?.id || null
+    if (!userId && !anonId) {
+      return NextResponse.json({ error: 'Missing listener identity' }, { status: 400 })
     }
 
     // 1. Detect location & device without storing raw IP (NDPR compliant)
@@ -68,14 +74,13 @@ export async function POST(request: Request) {
       console.warn('Backend heartbeat relay error, using local supabase fallback:', backendErr)
     }
 
-    const supabase = await createClient()
     const ninetySecondsAgo = new Date(Date.now() - 90 * 1000).toISOString()
 
     // 2. Look for active session in the last 90 seconds
     let activeSession = null
 
     if (userId) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listen_sessions')
         .select('id')
         .eq('channel_id', channelId)
@@ -85,9 +90,10 @@ export async function POST(request: Request) {
         .order('last_seen_at', { ascending: false })
         .limit(1)
         .maybeSingle()
+      if (error) throw error
       activeSession = data
     } else if (anonId) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listen_sessions')
         .select('id')
         .eq('channel_id', channelId)
@@ -97,6 +103,7 @@ export async function POST(request: Request) {
         .order('last_seen_at', { ascending: false })
         .limit(1)
         .maybeSingle()
+      if (error) throw error
       activeSession = data
     }
 
@@ -104,16 +111,17 @@ export async function POST(request: Request) {
 
     if (activeSession) {
       // Refresh heartbeat
-      await supabase
+      const { error } = await supabase
         .from('listen_sessions')
         .update({
           last_seen_at: nowIso,
           display_name: displayName,
         })
         .eq('id', activeSession.id)
+      if (error) throw error
     } else {
       // Insert new session
-      await supabase.from('listen_sessions').insert({
+      const { error } = await supabase.from('listen_sessions').insert({
         channel_id: channelId,
         show_id: showId || null,
         user_id: userId || null,
@@ -127,23 +135,26 @@ export async function POST(request: Request) {
         device_type: deviceType,
         referrer,
       })
+      if (error) throw error
     }
 
     // 3. Calculate exact active listeners (sessions seen in last 90 seconds)
-    const { count: activeListeners } = await supabase
+    const { count: activeListeners, error: countError } = await supabase
       .from('listen_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('channel_id', channelId)
       .gt('last_seen_at', ninetySecondsAgo)
       .is('left_at', null)
+    if (countError) throw countError
 
-    const count = activeListeners || 1
+    const count = activeListeners ?? 0
 
     // Update channel current listeners
-    await supabase
+    const { error: updateChannelError } = await supabase
       .from('channels')
       .update({ current_listeners: count })
       .eq('id', channelId)
+    if (updateChannelError) throw updateChannelError
 
     // Update show peak listeners if applicable
     if (showId) {

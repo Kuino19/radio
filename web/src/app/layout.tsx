@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import { Navbar } from '@/components/Navbar'
-import { NavbarShell } from '@/components/NavbarShell'
-import { MobileNav } from '@/components/MobileNav'
-import { PlayerProvider } from '@/context/PlayerContext'
-import { GlobalBottomPlayer } from '@/components/GlobalBottomPlayer'
 import { Footer } from '@/components/Footer'
+import { AppShell } from '@/components/AppShell'
+import { PlayerProvider } from '@/context/PlayerContext'
 import { PwaRegister } from '@/components/PwaRegister'
 import './globals.css'
 
@@ -67,16 +65,10 @@ export default function RootLayout({
       lang="en"
       className={`${bricolage.variable} ${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0E0D0C] text-[#F4EFE8] font-sans selection:bg-[#FF4A3D]/30 selection:text-white pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-16">
+      <body className="min-h-full flex flex-col bg-[#0E0D0C] text-[#F4EFE8] font-sans selection:bg-[#FF4A3D]/30 selection:text-white">
         <PwaRegister />
         <PlayerProvider>
-          <NavbarShell>
-            <Navbar />
-          </NavbarShell>
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <GlobalBottomPlayer />
-          <MobileNav />
+          <AppShell navbar={<Navbar />} footer={<Footer />}>{children}</AppShell>
         </PlayerProvider>
       </body>
     </html>

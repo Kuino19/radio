@@ -27,6 +27,7 @@ interface PlayerContextType {
   bufferHealth: 'live' | 'buffering' | 'offline'
   audioQuality: string
   currentDisplayName: string | null
+  setListenerName: (name: string) => void
   playbackError: string | null
   playbackRate: number
   currentTime: number
@@ -368,6 +369,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         bufferHealth,
         audioQuality: isHiFi ? '128 kbps Stereo Hi-Fi' : '64 kbps Voice Mono',
         currentDisplayName,
+        setListenerName: setCurrentDisplayName,
         playbackError,
         playbackRate,
         currentTime,
