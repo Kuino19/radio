@@ -22,7 +22,7 @@ export function MobileNav() {
   const isProfile = pathname.startsWith('/dashboard') || pathname === '/login'
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0E0D0C]/95 backdrop-blur-md border-t border-[#2A2724] px-4 py-2">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0E0D0C]/95 backdrop-blur-md border-t border-[#2A2724] px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center justify-around max-w-md mx-auto relative">
         {/* Home */}
         <Link

@@ -430,10 +430,10 @@ function spawnLiveFfmpeg(channelSlug) {
   return ffmpeg
 }
 
-// Helper: Spawn separate recording process to save original Opus audio as .webm with -c copy
+// Helper: Spawn separate recording process to save broadcast audio as universal .mp3
 function spawnRecordingFfmpeg(showId, channelSlug) {
   try {
-    const filename = `${showId || channelSlug || 'recording'}.webm`
+    const filename = `${showId || channelSlug || 'recording'}.mp3`
     const recordingFilePath = path.join(RECORDINGS_DIR, filename)
 
     const recArgs = [
@@ -443,10 +443,16 @@ function spawnRecordingFfmpeg(showId, channelSlug) {
       'webm',
       '-i',
       'pipe:0',
-      '-c',
-      'copy',
+      '-c:a',
+      'libmp3lame',
+      '-b:a',
+      '128k',
+      '-ar',
+      '44100',
+      '-ac',
+      '2',
       '-f',
-      'webm',
+      'mp3',
       recordingFilePath,
     ]
 

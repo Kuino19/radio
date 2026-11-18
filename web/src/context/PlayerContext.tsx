@@ -164,7 +164,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentTrack, isPlaying])
 
-  // Audio start helper
+  // Audio start helper — mobile-safe: requires prior user gesture on iOS/Android
   const startAudio = useCallback((track: ChannelTrack) => {
     if (!audioRef.current) return
 
@@ -179,6 +179,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       : track.streamUrl
 
     audioRef.current.src = cacheBusterUrl
+    audioRef.current.load() // Force load on mobile Safari
     audioRef.current.playbackRate = playbackRate
     audioRef.current.volume = isMuted ? 0 : volume
 
@@ -195,10 +196,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsPlaying(false)
         setIsLoading(false)
         if (err.name === 'NotAllowedError') {
-          // Browser autoplay policy blocked unmuted playback without prior user interaction.
-          // Keep buffer state ready and do not show an offline error.
-          setBufferHealth('buffering')
-          setPlaybackError(null)
+          // Mobile browser blocked autoplay — show a clear tap-to-play prompt
+          setBufferHealth('offline')
+          setPlaybackError(
+            track.isLive
+              ? 'Tap the play button to start the live stream.'
+              : 'Tap play to start audio.'
+          )
           return
         }
         if (err.name === 'AbortError') {
@@ -227,13 +231,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (currentTrack?.channelSlug === track.channelSlug && isPlaying) {
-      if (audioRef.current) audioRef.current.pause()
+      if (audioRef.current) {
+        audioRef.current.pause()
+        if (currentTrack.isLive) {
+          audioRef.current.removeAttribute('src')
+          audioRef.current.load()
+        }
+      }
       setIsPlaying(false)
+      setIsLoading(false)
+      setBufferHealth('offline')
       return
     }
 
     startAudio(track)
-  }, [currentDisplayName, currentTrack?.channelSlug, isPlaying, startAudio])
+  }, [currentDisplayName, currentTrack, isPlaying, startAudio])
 
   const togglePlay = useCallback(() => {
     if (!currentTrack) return
@@ -242,14 +254,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (audioRef.current) {
         audioRef.current.pause()
         if (currentTrack.isLive) {
-          audioRef.current.src = ''
+          audioRef.current.removeAttribute('src')
+          audioRef.current.load()
         }
       }
       setIsPlaying(false)
       setIsLoading(false)
       setBufferHealth('offline')
+      setPlaybackError(null)
     } else {
-      startAudio(currentTrack)
+      // Live streams are restarted from their URL after pause because the source is
+      // released to stop the continuous network request.
+      if (audioRef.current && audioRef.current.src && !currentTrack.isLive) {
+        const audio = audioRef.current
+        audio.play().then(() => {
+          setIsPlaying(true)
+          setIsLoading(false)
+          setBufferHealth('live')
+          setPlaybackError(null)
+        }).catch(() => startAudio(currentTrack))
+      } else {
+        startAudio(currentTrack)
+      }
     }
   }, [currentTrack, isPlaying, startAudio])
 
@@ -257,7 +283,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (audioRef.current) {
       audioRef.current.pause()
       if (currentTrack?.isLive) {
-        audioRef.current.src = ''
+        audioRef.current.removeAttribute('src')
+        audioRef.current.load()
       }
     }
     setIsPlaying(false)
@@ -361,10 +388,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         clearError: () => setPlaybackError(null),
       }}
     >
-      {/* Hidden Global Audio Element */}
+      {/* Hidden Global Audio Element — mobile-optimized */}
       <audio
         ref={audioRef}
-        preload="metadata"
+        preload="auto"
+        playsInline
         onTimeUpdate={() => {
           if (audioRef.current) {
             setCurrentTime(audioRef.current.currentTime)
@@ -390,6 +418,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setIsPlaying(false)
           setBufferHealth('offline')
           setPlaybackError('Stream disconnected or audio file could not be loaded.')
+        }}
+        onEnded={() => {
+          if (!currentTrack?.isLive) {
+            setIsPlaying(false)
+            setBufferHealth('offline')
+          }
         }}
       />
 

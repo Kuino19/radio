@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePlayer } from '@/context/PlayerContext'
 import { SpectrumVisualizer } from '@/components/SpectrumVisualizer'
 import { SocialShareModal } from '@/components/SocialShareModal'
+import type { Recording } from '@/types/database'
 import {
   Play,
   Pause,
@@ -15,6 +16,10 @@ import {
   Wifi,
   AlertCircle,
   Share2,
+  RotateCcw,
+  RotateCw,
+  Clock,
+  Sparkles,
 } from 'lucide-react'
 
 interface AudioPlayerProps {
@@ -28,6 +33,7 @@ interface AudioPlayerProps {
   hostName?: string | null
   userLoggedIn: boolean
   userDisplayName?: string | null
+  latestRecording?: Recording | null
 }
 
 export function AudioPlayer({
@@ -41,11 +47,14 @@ export function AudioPlayer({
   hostName,
   userLoggedIn,
   userDisplayName,
+  latestRecording,
 }: AudioPlayerProps) {
   const {
     currentTrack,
     isPlaying: globalIsPlaying,
     isLoading: globalIsLoading,
+    currentTime,
+    duration: playerDuration,
     volume,
     isMuted,
     bufferHealth,
@@ -56,6 +65,8 @@ export function AudioPlayer({
     setVolume,
     toggleMute,
     toggleHiFi,
+    seek,
+    seekRelative,
   } = usePlayer()
 
   const [currentLive, setCurrentLive] = useState(isLive)
@@ -123,72 +134,109 @@ export function AudioPlayer({
     }
   }, [channelId, currentLive, supabase])
 
-  const isCurrentActiveChannel = currentTrack?.channelSlug === channelSlug
-  const isPlaying = isCurrentActiveChannel && globalIsPlaying
-  const isLoading = isCurrentActiveChannel && globalIsLoading
+  const recordingSlug = latestRecording ? `rec-${latestRecording.id}` : null
+  const isPlayingLive = currentTrack?.channelSlug === channelSlug && globalIsPlaying && currentTrack?.isLive
+  const isPlayingReplay = !!recordingSlug && currentTrack?.channelSlug === recordingSlug && globalIsPlaying
+  const isPlaying = isPlayingLive || isPlayingReplay
 
-  const handlePlayClick = () => {
-    playChannel({
-      channelId,
-      showId: currentShowId || null,
-      channelName,
-      channelSlug,
-      streamUrl,
-      coverUrl: coverUrl || null,
-      hostName: hostName || null,
-      isLive: currentLive,
-    })
+  const isLoadingLive = currentTrack?.channelSlug === channelSlug && globalIsLoading
+  const isLoadingReplay = !!recordingSlug && currentTrack?.channelSlug === recordingSlug && globalIsLoading
+  const isLoading = isLoadingLive || isLoadingReplay
+
+  const isCurrentActiveChannel = currentTrack?.channelSlug === channelSlug || currentTrack?.channelSlug === recordingSlug
+  const currentPlaybackError = isCurrentActiveChannel ? playbackError : null
+
+  const formatTime = (secs: number) => {
+    if (isNaN(secs) || secs < 0) return '0:00'
+    const mins = Math.floor(secs / 60)
+    const s = Math.floor(secs % 60)
+    return `${mins}:${s.toString().padStart(2, '0')}`
   }
 
-  // Automatically attempt playback when stream is live
+  const handlePlayClick = () => {
+    if (currentLive) {
+      playChannel({
+        channelId,
+        showId: currentShowId || null,
+        channelName,
+        channelSlug,
+        streamUrl,
+        coverUrl: coverUrl || null,
+        hostName: hostName || null,
+        isLive: true,
+      })
+    } else if (latestRecording) {
+      playChannel({
+        channelName: `${channelName}: ${latestRecording.title}`,
+        channelSlug: `rec-${latestRecording.id}`,
+        streamUrl: latestRecording.audio_url,
+        coverUrl: coverUrl || null,
+        hostName: hostName || 'Archive Replay',
+        isLive: false,
+        duration: latestRecording.duration_seconds,
+      })
+    }
+  }
+
+  // Automatically attempt playback when stream is live (desktop only — mobile requires user gesture)
   useEffect(() => {
     if (currentLive && !isPlaying && !isLoading) {
-      handlePlayClick()
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      if (!isMobile) {
+        handlePlayClick()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLive, channelSlug])
 
   return (
     <>
-      <div className="rounded-3xl border border-[#2A2724] bg-[#1A1816] p-6 sm:p-8 space-y-6 shadow-xl">
+      <div className="rounded-3xl border border-[#2A2724] bg-[#1A1816] p-5 sm:p-8 space-y-5 sm:space-y-6 shadow-xl">
         {/* Top Bar: Broadcast Station details & Live status */}
-        <div className="flex items-center justify-between border-b border-[#2A2724] pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0E0D0C] text-[#F2B544] border border-[#2A2724]">
-              <Radio className="h-5 w-5" />
+        <div className="flex items-center justify-between border-b border-[#2A2724] pb-3 sm:pb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-[#0E0D0C] text-[#F2B544] border border-[#2A2724]">
+              <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#A39B91]">
-                  Live Transmission
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[#A39B91]">
+                  {currentLive ? 'Live Transmission' : latestRecording ? 'Past Show Replay' : 'Station Status'}
                 </span>
-                <button
-                  type="button"
-                  onClick={toggleHiFi}
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono transition-colors ${
-                    isHiFi
-                      ? 'bg-[#F2B544] text-[#0E0D0C] font-bold'
-                      : 'bg-[#0E0D0C] text-[#A39B91] border border-[#2A2724] hover:text-[#F4EFE8]'
-                  }`}
-                  title="Toggle High-Fidelity Audio Mode"
-                >
-                  {isHiFi ? '128k Hi-Fi' : '64k Voice'}
-                </button>
+                {currentLive && (
+                  <button
+                    type="button"
+                    onClick={toggleHiFi}
+                    className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono transition-colors ${
+                      isHiFi
+                        ? 'bg-[#F2B544] text-[#0E0D0C] font-bold'
+                        : 'bg-[#0E0D0C] text-[#A39B91] border border-[#2A2724] hover:text-[#F4EFE8]'
+                    }`}
+                    title="Toggle High-Fidelity Audio Mode"
+                  >
+                    {isHiFi ? '128k Hi-Fi' : '64k Voice'}
+                  </button>
+                )}
               </div>
-              <p className="text-sm sm:text-base font-bold text-[#F4EFE8] truncate max-w-[200px] sm:max-w-md">
-                {channelName}
+              <p className="text-xs sm:text-base font-bold text-[#F4EFE8] truncate max-w-[180px] sm:max-w-md">
+                {currentLive ? channelName : latestRecording ? latestRecording.title : channelName}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             {currentLive ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] px-3 py-1 text-xs font-bold text-[#FF4A3D] border border-[#FF4A3D]/30 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-bold text-[#FF4A3D] border border-[#FF4A3D]/30 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-[#FF4A3D] animate-pulse" />
                 LIVE
               </span>
+            ) : latestRecording ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-medium text-[#F2B544] border border-[#F2B544]/30">
+                <Clock className="w-3 h-3 text-[#F2B544]" />
+                REPLAY AVAILABLE
+              </span>
             ) : (
-              <span className="inline-flex items-center rounded-full bg-[#0E0D0C] px-3 py-1 text-xs font-medium text-[#A39B91] border border-[#2A2724]">
+              <span className="inline-flex items-center rounded-full bg-[#0E0D0C] px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-medium text-[#A39B91] border border-[#2A2724]">
                 OFFLINE
               </span>
             )}
@@ -196,44 +244,89 @@ export function AudioPlayer({
         </div>
 
         {/* Real-time Spectrum Visualizer */}
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-[#0E0D0C] p-5 border border-[#2A2724] relative overflow-hidden">
+        <div className="flex flex-col items-center justify-center rounded-2xl bg-[#0E0D0C] p-4 sm:p-5 border border-[#2A2724] relative overflow-hidden">
           <SpectrumVisualizer isPlaying={isPlaying} barCount={26} height={56} accentColor="#F2B544" />
           {!isPlaying && (
-            <p className="text-xs text-[#A39B91] mt-3 font-medium flex items-center gap-1.5">
+            <p className="text-[11px] sm:text-xs text-[#A39B91] mt-3 font-medium flex items-center gap-1.5">
               <Wifi className="h-3.5 w-3.5 text-[#F2B544]" />
-              {currentLive ? 'Tap play to tune in to live audio' : 'Station is currently offline'}
+              {currentLive
+                ? 'Tap play to tune in to live audio'
+                : latestRecording
+                ? 'Station offline. Tap play to listen to the latest show.'
+                : 'Station is currently offline'}
             </p>
           )}
         </div>
 
+        {/* Replay Scrubber for Archived Broadcast */}
+        {isPlayingReplay && latestRecording && (
+          <div className="rounded-2xl border border-[#2A2724] bg-[#0E0D0C] p-3.5 space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-mono text-[#A39B91]">
+              <span>{formatTime(currentTime)}</span>
+              <span className="text-[#F4EFE8] font-semibold truncate max-w-[200px] text-center">
+                {latestRecording.title}
+              </span>
+              <span>{formatTime(playerDuration || latestRecording.duration_seconds)}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max={playerDuration || latestRecording.duration_seconds || 100}
+              step="1"
+              value={currentTime}
+              onChange={(e) => seek(parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-[#2A2724] rounded-lg accent-[#F2B544] cursor-pointer"
+            />
+            <div className="flex items-center justify-center gap-4 pt-1">
+              <button
+                type="button"
+                onClick={() => seekRelative(-15)}
+                className="inline-flex items-center gap-1 text-[11px] text-[#A39B91] hover:text-[#F4EFE8] active:scale-95 transition-all touch-manipulation px-2 py-1 rounded-lg hover:bg-[#1A1816]"
+                title="Rewind 15 seconds"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-[#F2B544]" />
+                <span>15s</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => seekRelative(15)}
+                className="inline-flex items-center gap-1 text-[11px] text-[#A39B91] hover:text-[#F4EFE8] active:scale-95 transition-all touch-manipulation px-2 py-1 rounded-lg hover:bg-[#1A1816]"
+                title="Fast forward 15 seconds"
+              >
+                <span>15s</span>
+                <RotateCw className="w-3.5 h-3.5 text-[#F2B544]" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Playback Error / Status Notice */}
-        {playbackError && isCurrentActiveChannel && (
-          <div className="rounded-2xl border border-[#2A2724] bg-[#0E0D0C] p-4 text-xs text-[#F4EFE8] space-y-1">
+        {currentPlaybackError && (
+          <div className="rounded-2xl border border-[#2A2724] bg-[#0E0D0C] p-3 sm:p-4 text-xs text-[#F4EFE8] space-y-1">
             <div className="flex items-center gap-2 font-bold text-[#F2B544]">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{currentLive ? 'Connecting to live broadcast...' : 'Broadcast is currently offline'}</span>
+              <span>{currentLive ? 'Connecting to live broadcast...' : 'Broadcast Notice'}</span>
             </div>
             <p className="text-[11px] text-[#A39B91] leading-relaxed">
-              {currentLive
-                ? 'Audio stream is initializing. If sound does not begin playing immediately, please tap the Play button below.'
-                : 'The station host is not broadcasting at this moment. You will be automatically connected when they go live.'}
+              {currentPlaybackError}
             </p>
           </div>
         )}
 
-        {/* Stream Controls */}
-        <div className="flex items-center justify-between gap-4 pt-2">
+        {/* Stream Controls — mobile-optimized with big tap targets */}
+        <div className="flex items-center justify-between gap-3 sm:gap-4 pt-1 sm:pt-2">
           {/* Big Play / Pause Button & Status */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
+              disabled={!currentLive && !latestRecording}
               onClick={isPlaying ? togglePlay : handlePlayClick}
-              className={`flex h-14 w-14 items-center justify-center rounded-full text-[#0E0D0C] shadow-lg transition-transform ${
+              className={`flex h-14 w-14 sm:h-14 sm:w-14 items-center justify-center rounded-full text-[#0E0D0C] shadow-lg transition-transform active:scale-95 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed ${
                 isPlaying
                   ? 'bg-[#F4EFE8] hover:bg-[#FAF6F0]'
-                  : 'bg-[#F2B544] hover:brightness-110 active:scale-95 shadow-[#F2B544]/20'
+                  : 'bg-[#F2B544] hover:brightness-110 shadow-[#F2B544]/20'
               }`}
-              title={isPlaying ? 'Pause' : 'Play Live'}
+              title={isPlaying ? 'Pause' : currentLive ? 'Play Live' : latestRecording ? 'Play Replay' : 'Offline'}
             >
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-[#0E0D0C]" />
@@ -246,13 +339,18 @@ export function AudioPlayer({
 
             <div>
               <p className="text-sm sm:text-base font-bold text-[#F4EFE8] leading-tight">
-                {channelName}
+                {currentLive ? channelName : latestRecording ? latestRecording.title : channelName}
               </p>
-              <p className="text-xs text-[#A39B91] mt-0.5">
+              <p className="text-[11px] sm:text-xs text-[#A39B91] mt-0.5">
                 {currentLive ? (
                   <span className="text-[#3DBE7A] font-medium flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#3DBE7A] animate-pulse" />
                     Live Audio Stream
+                  </span>
+                ) : latestRecording ? (
+                  <span className="text-[#F2B544] font-medium flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#F2B544]" />
+                    Replay ({formatTime(latestRecording.duration_seconds)})
                   </span>
                 ) : (
                   <span>Broadcast is offline</span>
@@ -261,10 +359,10 @@ export function AudioPlayer({
             </div>
           </div>
 
-          {/* Right Tools: Clean Volume & Share Only */}
-          <div className="flex items-center gap-2.5">
-            {/* Volume Control */}
-            <div className="flex items-center gap-2 bg-[#0E0D0C] px-3.5 py-2 rounded-full border border-[#2A2724]">
+          {/* Right Tools: Volume (desktop) & Share */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Volume Control — hidden on mobile, shown on desktop */}
+            <div className="hidden sm:flex items-center gap-2 bg-[#0E0D0C] px-3.5 py-2 rounded-full border border-[#2A2724]">
               <button
                 type="button"
                 onClick={toggleMute}
@@ -288,11 +386,25 @@ export function AudioPlayer({
               />
             </div>
 
+            {/* Mobile mute toggle — visible only on mobile */}
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="sm:hidden flex h-10 w-10 items-center justify-center rounded-full bg-[#0E0D0C] border border-[#2A2724] text-[#A39B91] active:bg-[#2A2724] touch-manipulation"
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX className="h-4 w-4 text-[#FF4A3D]" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+            </button>
+
             {/* Share Button */}
             <button
               type="button"
               onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] border border-[#2A2724] px-4 py-2 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544]/60 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#0E0D0C] border border-[#2A2724] px-3 sm:px-4 py-2 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544]/60 active:bg-[#2A2724] transition-colors touch-manipulation"
               title="Share broadcast"
             >
               <Share2 className="w-3.5 h-3.5 text-[#F2B544]" />

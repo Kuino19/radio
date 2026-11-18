@@ -207,6 +207,7 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
             hostName={host?.display_name}
             userLoggedIn={!!user}
             userDisplayName={userProfile?.display_name || user?.email?.split('@')[0]}
+            latestRecording={recordings[0] || null}
           />
 
           {/* Scheduled Upcoming Shows */}

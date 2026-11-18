@@ -67,7 +67,7 @@ export default function RootLayout({
       lang="en"
       className={`${bricolage.variable} ${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0E0D0C] text-[#F4EFE8] font-sans selection:bg-[#FF4A3D]/30 selection:text-white pb-24 md:pb-16">
+      <body className="min-h-full flex flex-col bg-[#0E0D0C] text-[#F4EFE8] font-sans selection:bg-[#FF4A3D]/30 selection:text-white pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-16">
         <PwaRegister />
         <PlayerProvider>
           <NavbarShell>

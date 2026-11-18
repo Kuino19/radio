@@ -51,8 +51,8 @@ export function GlobalBottomPlayer() {
 
   return (
     <>
-      {/* 1. Global Persistent Sticky Bottom Bar */}
-      <aside className="fixed bottom-16 md:bottom-0 left-0 right-0 z-30 border-t border-[#2A2724] bg-[#1A1816]/95 backdrop-blur-xl px-4 py-2 sm:py-2.5 transition-all duration-300 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+      {/* 1. Global Persistent Sticky Bottom Bar — above MobileNav (pb-[calc(env(safe-area-inset-bottom)+60px)] on body) */}
+      <aside className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 z-30 border-t border-[#2A2724] bg-[#1A1816]/95 backdrop-blur-xl px-3 sm:px-4 py-2 sm:py-2.5 transition-all duration-300 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 sm:gap-6">
           {/* Station Artwork & Title */}
           <div
@@ -94,14 +94,14 @@ export function GlobalBottomPlayer() {
 
           {/* Center: Live Waveform Visualizer & Play Controls */}
           <div className="flex items-center gap-3 sm:gap-4 flex-1 max-w-md justify-center">
-            {/* Play / Pause Toggle: Amber button */}
+            {/* Play / Pause Toggle: Amber button — mobile-sized touch target */}
             <button
               type="button"
               onClick={togglePlay}
-              className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full text-[#0E0D0C] shadow-md transition-all ${
+              className={`flex h-11 w-11 sm:h-11 sm:w-11 items-center justify-center rounded-full text-[#0E0D0C] shadow-md transition-all active:scale-95 touch-manipulation ${
                 isPlaying
                   ? 'bg-[#F4EFE8] hover:bg-[#FAF6F0]'
-                  : 'bg-[#F2B544] hover:brightness-110 active:scale-95 shadow-[#F2B544]/20'
+                  : 'bg-[#F2B544] hover:brightness-110 shadow-[#F2B544]/20'
               }`}
               title={isPlaying ? 'Pause' : 'Play Live'}
             >
