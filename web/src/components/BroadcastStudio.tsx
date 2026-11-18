@@ -5,11 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LiveChat } from '@/components/LiveChat'
-import { ScheduleShowModal } from '@/components/ScheduleShowModal'
 import { SocialShareModal } from '@/components/SocialShareModal'
 import {
   Mic,
-  MicOff,
   Radio,
   Share2,
   Check,
@@ -19,10 +17,7 @@ import {
   RotateCcw,
   Square,
   Users,
-  Clock,
-  Sparkles,
   Smartphone,
-  ChevronDown,
   ArrowLeft,
   BarChart3,
   ExternalLink,
@@ -30,6 +25,11 @@ import {
 import type { Channel } from '@/types/database'
 
 type StudioState = 'ready' | 'connecting' | 'on_air' | 'reconnecting' | 'ended'
+
+function preferredAudioMimeType() {
+  if (typeof MediaRecorder === 'undefined') return ''
+  return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type)) || ''
+}
 
 interface BroadcastStudioProps {
   channel: Channel
@@ -47,7 +47,6 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const [isChangingMic, setIsChangingMic] = useState(false)
   const [micLevel, setMicLevel] = useState<number>(0)
   const [micError, setMicError] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState<string>('')
   const [liveDuration, setLiveDuration] = useState<number>(0)
   const [reconnectCountdown, setReconnectCountdown] = useState<number>(30)
   const [copiedLink, setCopiedLink] = useState(false)
@@ -55,8 +54,9 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const [peakListeners, setPeakListeners] = useState(channel.current_listeners || 0)
   const [activeListenerList, setActiveListenerList] = useState<{ id: string; displayName: string; isGuest: boolean }[]>([])
   const [newFollowers, setNewFollowers] = useState(0)
-  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [confirmEndShow, setConfirmEndShow] = useState(false)
+  const [isCheckingMic, setIsCheckingMic] = useState(false)
 
   // Hardware and Network references
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -147,7 +147,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   }, [])
 
   useEffect(() => {
-    initMicrophone()
+    const initTimer = window.setTimeout(() => void initMicrophone(), 0)
 
     const handleDeviceChange = () => {
       navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -159,6 +159,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange)
 
     return () => {
+      window.clearTimeout(initTimer)
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange)
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop())
@@ -302,7 +303,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
     if (!mediaStreamRef.current) {
       try {
         await initMicrophone(selectedDeviceId)
-      } catch (err) {
+      } catch {
         setMicError('Please allow microphone permissions to broadcast.')
         return
       }
@@ -314,7 +315,6 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
     }
 
     setStudioState('connecting')
-    setStatusMessage('Connecting to streaming server...')
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.access_token) {
@@ -328,13 +328,13 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
     socketRef.current = ws
 
     ws.onopen = () => {
-      setStatusMessage('Authenticating broadcast channel...')
       ws.send(
         JSON.stringify({
           action: 'start',
           token: session.access_token,
           channelSlug: channel.slug,
           showTitle: showTitle.trim() || `${channel.name} Live`,
+          audioMimeType: preferredAudioMimeType(),
         })
       )
     }
@@ -367,7 +367,6 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
             connectTimeout = null
           }
           setStudioState('on_air')
-          setStatusMessage('')
           startMediaRecorder(ws)
         } else if (isError) {
           if (connectTimeout) {
@@ -412,15 +411,13 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const startMediaRecorder = (ws: WebSocket) => {
     if (!mediaStreamRef.current) return
 
-    let mimeType = 'audio/webm;codecs=opus'
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      if (MediaRecorder.isTypeSupported('audio/webm')) {
-        mimeType = 'audio/webm'
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4'
-      } else {
-        mimeType = ''
-      }
+    const mimeType = preferredAudioMimeType()
+
+    if (!mimeType) {
+      setMicError('This browser cannot record a supported audio format. Please use an updated browser.')
+      cleanupBroadcast()
+      setStudioState('ready')
+      return
     }
 
     const recorder = new MediaRecorder(
@@ -477,6 +474,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
             action: 'reconnect',
             token: session.access_token,
             channelSlug: channel.slug,
+            audioMimeType: preferredAudioMimeType(),
           })
         )
       }
@@ -527,7 +525,14 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
   const handleEndShow = () => {
     cleanupBroadcast()
     setStudioState('ended')
+    setConfirmEndShow(false)
     router.refresh()
+  }
+
+  const handleMicCheck = async () => {
+    setIsCheckingMic(true)
+    await initMicrophone(selectedDeviceId || undefined)
+    setIsCheckingMic(false)
   }
 
   const handleShare = async () => {
@@ -797,7 +802,7 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
             <div className="rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-4 space-y-2">
               <div className="flex items-center justify-between text-xs text-[#A39B91]">
                 <span className="font-medium">Mic level</span>
-                <span className="font-mono text-[11px]">{micLevel}%</span>
+                <span className="font-mono text-[11px]" aria-live="polite">{micLevel}%</span>
               </div>
 
               {/* Segmented LED Green Bars */}
@@ -820,6 +825,16 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
                     />
                   )
                 })}
+              </div>
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                <p className={`text-[11px] ${micLevel < 3 ? 'text-[#F2B544]' : micLevel > 85 ? 'text-[#FF756C]' : 'text-[#3DBE7A]'}`}>
+                  {micLevel < 3 ? 'Speak into the mic to check your input.' : micLevel > 85 ? 'Input is very loud. Move back or lower your mic gain.' : 'Mic is picking up audio.'}
+                </p>
+                {studioState === 'ready' && (
+                  <button type="button" onClick={() => void handleMicCheck()} disabled={isCheckingMic} className="min-h-10 rounded-xl border border-[#3A3020] px-3 text-xs font-semibold text-[#F2B544] disabled:opacity-50">
+                    {isCheckingMic ? 'Checking microphone…' : 'Test microphone'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -873,12 +888,24 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
               <div>
                 <button
                   type="button"
-                  onClick={handleEndShow}
+                  onClick={() => setConfirmEndShow(true)}
                   className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#FF4A3D] py-4 px-6 text-sm sm:text-base font-bold text-white hover:brightness-110 active:scale-95 transition-all shadow-lg"
                 >
                   <Square className="w-4 h-4 fill-current" />
                   <span>End show</span>
                 </button>
+              </div>
+            )}
+            {confirmEndShow && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4" role="presentation">
+                <section role="alertdialog" aria-modal="true" aria-labelledby="end-broadcast-title" className="w-full max-w-md rounded-2xl border border-[#3A3020] bg-[#171513] p-5 shadow-2xl">
+                  <h2 id="end-broadcast-title" className="font-display text-lg font-bold text-[#F4EFE8]">End this live show?</h2>
+                  <p className="mt-2 text-sm text-[#A39B91]">Listeners will be disconnected and the recording will be finalized. You can’t resume this show after ending it.</p>
+                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" autoFocus onClick={() => setConfirmEndShow(false)} className="min-h-11 rounded-xl border border-[#39332A] px-4 text-sm font-semibold text-[#C7BFB4]">Keep broadcasting</button>
+                    <button type="button" onClick={handleEndShow} className="min-h-11 rounded-xl bg-[#FF4A3D] px-4 text-sm font-bold text-white">End show</button>
+                  </div>
+                </section>
               </div>
             )}
           </div>
@@ -1000,7 +1027,6 @@ export function BroadcastStudio({ channel }: BroadcastStudioProps) {
           <div className="rounded-3xl border border-[#2A2724] bg-[#1A1816] p-6 shadow-xl">
             <LiveChat
               channelId={channel.id}
-              channelSlug={channel.slug}
               channelOwnerId={channel.owner_id}
               isOwner={true}
               currentUserDisplayName={channel.name}

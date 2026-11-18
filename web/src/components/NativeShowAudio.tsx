@@ -6,6 +6,7 @@ import { getOrCreateAnonId, getSavedGuestName } from '@/lib/guest'
 
 interface NativeShowAudioProps {
   channelId: string
+  channelSlug: string
   showId: string
   isLive: boolean
   streamUrl: string
@@ -15,14 +16,42 @@ interface NativeShowAudioProps {
   onActiveListeners?: (count: number) => void
 }
 
-export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordingUrl, displayName, userId, onActiveListeners }: NativeShowAudioProps) {
+export function NativeShowAudio({ channelId, channelSlug, showId, isLive, streamUrl, recordingUrl, displayName, userId, onActiveListeners }: NativeShowAudioProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [attendanceRegistered, setAttendanceRegistered] = useState(false)
   const [attendanceError, setAttendanceError] = useState<string | null>(null)
-  const source = isLive ? streamUrl : recordingUrl
+  const [liveStatus, setLiveStatus] = useState(isLive)
+  const source = liveStatus ? streamUrl : recordingUrl
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLiveStatus(isLive), 0)
+    return () => window.clearTimeout(timer)
+  }, [isLive])
+
+  useEffect(() => {
+    if (!isLive) return
+    let cancelled = false
+    const checkLiveStatus = async () => {
+      try {
+        const stream = new URL(streamUrl)
+        const response = await fetch(`${stream.origin}/api/live-status/${encodeURIComponent(channelSlug)}`, { cache: 'no-store' })
+        if (!response.ok) return
+        const status = await response.json() as { isLive?: boolean; showId?: string | null }
+        if (!cancelled) setLiveStatus(Boolean(status.isLive && status.showId === showId))
+      } catch {
+        // Keep the server-rendered status when the stream status endpoint cannot be reached.
+      }
+    }
+    void checkLiveStatus()
+    const interval = window.setInterval(checkLiveStatus, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [channelSlug, isLive, showId, streamUrl])
 
   const togglePlayback = async () => {
     const audio = audioRef.current
@@ -35,17 +64,28 @@ export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordin
     setError(null)
     setIsLoading(true)
     try {
+      if (liveStatus && audio.src) {
+        audio.pause()
+        audio.removeAttribute('src')
+        audio.load()
+      }
+      audio.src = liveStatus
+        ? `${streamUrl}${streamUrl.includes('?') ? '&' : '?'}t=${Date.now()}`
+        : recordingUrl || ''
+      if (!audio.src) throw new Error('No audio source is available for this show.')
+      audio.load()
       await audio.play()
     } catch {
       setIsLoading(false)
-      setError('Could not start audio. Tap play to try again.')
+      setError('Could not start audio. Check your connection and tap play to retry.')
     }
   }
 
   useEffect(() => {
-    if (!isPlaying || !displayName) return
+    if (!isPlaying || !displayName || !liveStatus) return
 
     const sendHeartbeat = async () => {
+      if (document.visibilityState === 'hidden') return
       try {
         const response = await fetch('/api/heartbeat', {
           method: 'POST',
@@ -72,10 +112,23 @@ export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordin
       }
     }
 
+    const heartbeatAfterPlayback = () => {
+      if (audioRef.current && !audioRef.current.paused) void sendHeartbeat()
+    }
+    const audio = audioRef.current
     void sendHeartbeat()
-    const interval = window.setInterval(sendHeartbeat, 15000)
-    return () => window.clearInterval(interval)
-  }, [channelId, displayName, isPlaying, onActiveListeners, showId, userId])
+    audio?.addEventListener('playing', heartbeatAfterPlayback)
+    const interval = window.setInterval(heartbeatAfterPlayback, 15000)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') heartbeatAfterPlayback()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.clearInterval(interval)
+      audio?.removeEventListener('playing', heartbeatAfterPlayback)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [channelId, displayName, isPlaying, liveStatus, onActiveListeners, showId, userId])
 
   if (!source) {
     return (
@@ -90,11 +143,11 @@ export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordin
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-[#F4EFE8]">
           <Radio className="h-4 w-4 text-[#F2B544]" />
-          {isLive ? 'Listen live' : 'Listen to replay'}
+          {liveStatus ? 'Listen live' : 'Listen to replay'}
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${isLive ? 'border-[#FF4A3D]/30 bg-[#FF4A3D]/10 text-[#FF756C]' : 'border-[#3A3020] bg-[#0E0D0C]/60 text-[#A39B91]'}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${isLive ? 'animate-pulse bg-[#FF4A3D]' : 'bg-[#F2B544]'}`} />
-          {isLive ? 'On air' : 'Replay'}
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${liveStatus ? 'border-[#FF4A3D]/30 bg-[#FF4A3D]/10 text-[#FF756C]' : 'border-[#3A3020] bg-[#0E0D0C]/60 text-[#A39B91]'}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${liveStatus ? 'animate-pulse bg-[#FF4A3D]' : 'bg-[#F2B544]'}`} />
+          {liveStatus ? 'On air' : 'Replay'}
         </span>
       </div>
 
@@ -109,7 +162,7 @@ export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordin
           {isLoading ? <Loader2 className="h-10 w-10 animate-spin sm:h-12 sm:w-12" /> : isPlaying ? <Pause className="h-10 w-10 fill-current sm:h-12 sm:w-12" /> : <Play className="ml-1 h-10 w-10 fill-current sm:h-12 sm:w-12" />}
         </button>
         <p className="mt-5 text-base font-bold text-[#F4EFE8]">
-          {isLoading ? 'Connecting to audio…' : isPlaying ? isLive ? 'You’re listening live' : 'You’re listening to the replay' : 'Tap to listen'}
+          {isLoading ? 'Connecting to audio…' : isPlaying ? liveStatus ? 'You’re listening live' : 'You’re listening to the replay' : 'Tap to listen'}
         </p>
         <p className="mt-1 text-xs text-[#A39B91]">Use your phone’s volume buttons to adjust sound</p>
         <div className="mt-4 flex h-7 items-center gap-1" aria-hidden="true">
@@ -124,7 +177,7 @@ export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordin
         playsInline
         preload="none"
         src={source}
-        aria-label={isLive ? 'Live show audio player' : 'Show replay audio player'}
+        aria-label={liveStatus ? 'Live show audio player' : 'Show replay audio player'}
         className="sr-only"
         onPlay={() => setError(null)}
         onPlaying={() => {
@@ -150,6 +203,11 @@ export function NativeShowAudio({ channelId, showId, isLive, streamUrl, recordin
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           {error}
         </p>
+      )}
+      {liveStatus && error && (
+        <button type="button" onClick={() => { setError(null); void togglePlayback() }} className="mt-2 min-h-11 w-full rounded-xl border border-[#F2B544]/30 bg-[#F2B544]/10 px-4 text-sm font-semibold text-[#F2B544]">
+          Retry live audio
+        </button>
       )}
       <p className="flex items-center justify-center gap-1.5 border-t border-white/[0.06] pt-3 text-center text-[11px] leading-relaxed text-[#A39B91]">
         {attendanceRegistered && <Volume2 className="h-3.5 w-3.5 text-[#3DBE7A]" />}

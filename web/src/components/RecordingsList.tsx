@@ -10,7 +10,6 @@ import type { Recording } from '@/types/database'
 interface RecordingsListProps {
   recordings: Recording[]
   channelName: string
-  channelSlug: string
   coverUrl?: string | null
   isOwner?: boolean
 }
@@ -18,7 +17,6 @@ interface RecordingsListProps {
 export function RecordingsList({
   recordings,
   channelName,
-  channelSlug,
   coverUrl,
   isOwner = false,
 }: RecordingsListProps) {
@@ -155,7 +153,6 @@ export function RecordingsList({
           recording={selectedRecForNotes}
           isOpen={!!selectedRecForNotes}
           onClose={() => setSelectedRecForNotes(null)}
-          canEdit={isOwner}
           onRecordingUpdated={(updated) => {
             setList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
             setSelectedRecForNotes(updated)

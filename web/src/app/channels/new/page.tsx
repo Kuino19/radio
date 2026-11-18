@@ -99,7 +99,7 @@ export default function NewChannelPage() {
     }
 
     // Insert channel
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('channels')
       .insert({
         name: name.trim(),

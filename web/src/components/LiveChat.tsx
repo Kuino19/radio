@@ -18,7 +18,6 @@ import type { ChatMessage } from '@/types/database'
 
 interface LiveChatProps {
   channelId: string
-  channelSlug: string
   showId?: string | null
   channelOwnerId: string
   currentUserId?: string | null
@@ -29,7 +28,6 @@ interface LiveChatProps {
 
 export function LiveChat({
   channelId,
-  channelSlug,
   showId,
   channelOwnerId,
   currentUserId,
@@ -54,12 +52,13 @@ export function LiveChat({
 
   // Check guest name & anonId
   useEffect(() => {
-    if (!currentUserId) {
+    if (currentUserId) return
+    const timer = window.setTimeout(() => {
       const saved = getSavedGuestName()
       if (saved) setGuestName(saved)
-      const aid = getOrCreateAnonId()
-      setAnonId(aid)
-    }
+      setAnonId(getOrCreateAnonId())
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [currentUserId])
 
   const effectiveDisplayName = currentUserDisplayName || guestName

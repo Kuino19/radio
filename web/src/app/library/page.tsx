@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { Heart, ListMusic, Bookmark, Plus, Radio, Play, Users, ArrowRight } from 'lucide-react'
-import type { Favorite, Playlist, Follow, Channel } from '@/types/database'
+import { ListMusic, Bookmark, Radio, ArrowRight } from 'lucide-react'
+import type { Favorite, Playlist, Channel } from '@/types/database'
 
 export default async function LibraryPage() {
   const supabase = await createClient()

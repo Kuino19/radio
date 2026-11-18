@@ -19,7 +19,6 @@ import {
   RotateCcw,
   RotateCw,
   Clock,
-  Sparkles,
 } from 'lucide-react'
 
 interface AudioPlayerProps {
@@ -31,8 +30,6 @@ interface AudioPlayerProps {
   channelSlug: string
   coverUrl?: string | null
   hostName?: string | null
-  userLoggedIn: boolean
-  userDisplayName?: string | null
   latestRecording?: Recording | null
   showSpecific?: boolean
 }
@@ -46,8 +43,6 @@ export function AudioPlayer({
   channelSlug,
   coverUrl,
   hostName,
-  userLoggedIn,
-  userDisplayName,
   latestRecording,
   showSpecific = false,
 }: AudioPlayerProps) {
@@ -77,11 +72,13 @@ export function AudioPlayer({
   const supabase = createClient()
 
   useEffect(() => {
-    setCurrentLive(isLive)
+    const timer = window.setTimeout(() => setCurrentLive(isLive), 0)
+    return () => window.clearTimeout(timer)
   }, [isLive])
 
   useEffect(() => {
-    setCurrentShowId(showId)
+    const timer = window.setTimeout(() => setCurrentShowId(showId), 0)
+    return () => window.clearTimeout(timer)
   }, [showId])
 
   // Live status monitoring: listen to Supabase realtime and poll every 4s
@@ -90,6 +87,22 @@ export function AudioPlayer({
 
     const checkStatus = async () => {
       try {
+        try {
+          const stream = new URL(streamUrl)
+          const channelPath = stream.pathname.split('/').filter(Boolean).at(-1)
+          if (channelPath) {
+            const response = await fetch(`${stream.origin}/api/live-status/${encodeURIComponent(channelPath)}`, { cache: 'no-store' })
+            if (response.ok) {
+              const status = await response.json() as { isLive?: boolean; showId?: string | null }
+              setCurrentShowId(status.showId || null)
+              setCurrentLive(Boolean(status.isLive && (!showSpecific || status.showId === showId)))
+              return
+            }
+          }
+        } catch {
+          // Fall back to Supabase while the stream status endpoint is unavailable.
+        }
+
         const { data } = await supabase
           .from('channels')
           .select('is_live')
@@ -114,7 +127,8 @@ export function AudioPlayer({
       } catch {}
     }
 
-    const interval = setInterval(checkStatus, 4000)
+    void checkStatus()
+    const interval = setInterval(checkStatus, 5000)
 
     const sub = supabase
       .channel(`player-channel-${channelId}`)
@@ -123,13 +137,7 @@ export function AudioPlayer({
         { event: 'UPDATE', schema: 'public', table: 'channels', filter: `id=eq.${channelId}` },
         (payload) => {
           const updated = payload.new as { is_live?: boolean }
-          if (typeof updated.is_live === 'boolean') {
-            if (showSpecific && updated.is_live) {
-              void checkStatus()
-            } else {
-              setCurrentLive(updated.is_live)
-            }
-          }
+          if (typeof updated.is_live === 'boolean') void checkStatus()
         }
       )
       .subscribe()
@@ -138,7 +146,7 @@ export function AudioPlayer({
       clearInterval(interval)
       supabase.removeChannel(sub)
     }
-  }, [channelId, currentLive, showId, showSpecific, supabase])
+  }, [channelId, showId, showSpecific, streamUrl, supabase])
 
   const recordingSlug = latestRecording ? `rec-${latestRecording.id}` : null
   const isPlayingLive = currentTrack?.channelSlug === channelSlug && globalIsPlaying && currentTrack?.isLive

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Play, Pause, Volume2, VolumeX, Radio, ExternalLink, Users, Disc } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Play, Pause, Volume2, VolumeX, Radio, ExternalLink, Users, Disc, Loader2 } from 'lucide-react'
 import { SpectrumVisualizer } from '@/components/SpectrumVisualizer'
 
 interface EmbedPlayerClientProps {
@@ -29,15 +29,15 @@ export function EmbedPlayerClient({
 }: EmbedPlayerClientProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [isLive, setIsLive] = useState(initialIsLive)
-  const [listeners, setListeners] = useState(initialListeners)
+  const isLive = initialIsLive
+  const listeners = initialListeners
   const [volume, setVolume] = useState(0.9)
   const [isMuted, setIsMuted] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // Use live stream if on air, otherwise fallback to latest replay recording
   const activeAudioSource = isLive
-    ? `${streamUrl}${streamUrl.includes('?') ? '&' : '?'}embed=1&t=${Date.now()}`
+    ? `${streamUrl}${streamUrl.includes('?') ? '&' : '?'}embed=1`
     : latestRecordingUrl || streamUrl
 
   const togglePlay = () => {
@@ -48,7 +48,9 @@ export function EmbedPlayerClient({
       setIsPlaying(false)
     } else {
       setIsLoading(true)
-      audioRef.current.src = activeAudioSource
+      audioRef.current.src = isLive
+        ? `${activeAudioSource}&t=${Date.now()}`
+        : activeAudioSource
       audioRef.current
         .play()
         .then(() => {
@@ -174,7 +176,9 @@ export function EmbedPlayerClient({
             } disabled:opacity-40 disabled:cursor-not-allowed`}
             title={isPlaying ? 'Pause' : 'Play Broadcast'}
           >
-            {isPlaying ? (
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#0E0D0C]" />
+            ) : isPlaying ? (
               <Pause className="w-4 h-4 fill-current text-[#0E0D0C]" />
             ) : (
               <Play className="w-4 h-4 fill-current ml-0.5 text-[#0E0D0C]" />

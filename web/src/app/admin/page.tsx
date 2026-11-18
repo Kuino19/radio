@@ -4,14 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import {
   ShieldAlert,
   Radio,
-  Users,
-  CheckCircle2,
-  XCircle,
   ExternalLink,
   Star,
-  Sparkles,
 } from 'lucide-react'
-import type { Channel, Profile } from '@/types/database'
+import type { Channel } from '@/types/database'
 
 export default async function AdminPage() {
   const supabase = await createClient()

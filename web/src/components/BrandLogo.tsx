@@ -5,6 +5,7 @@ interface BrandLogoProps {
   variant?: 'full' | 'icon' | 'compact'
   size?: 'sm' | 'md' | 'lg' | 'xl'
   href?: string
+  withDot?: boolean
 }
 
 export function BrandLogo({
@@ -12,6 +13,7 @@ export function BrandLogo({
   variant = 'full',
   size = 'md',
   href = '/',
+  withDot = true,
 }: BrandLogoProps) {
   const sizeMap = {
     sm: { icon: 'w-6 h-6', text: 'text-lg', height: 24 },
@@ -47,7 +49,7 @@ export function BrandLogo({
           LISN
           <span className="relative inline-flex items-baseline">
             <span>R</span>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#FF4A3D] ml-0.5 align-baseline" />
+            {withDot && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#FF4A3D] ml-0.5 align-baseline" />}
           </span>
         </span>
       )}

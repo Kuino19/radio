@@ -64,12 +64,23 @@ app.use(express.json())
 app.use('/recordings', express.static(RECORDINGS_DIR))
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
+app.get('/api/health', async (req, res) => {
+  let icecastStatus = 'ok'
+  try {
+    const icecastUrl = `http://${ICECAST_HOST}:${ICECAST_PORT}/status-json.xsl`
+    const response = await fetch(icecastUrl, { signal: AbortSignal.timeout(1500) })
+    if (!response.ok) icecastStatus = 'unavailable'
+  } catch {
+    icecastStatus = 'unavailable'
+  }
+
+  const healthy = icecastStatus === 'ok'
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
     service: 'lisnr-backend',
     version: '1.2.0',
     activeBroadcasts: activeBroadcasts.size,
+    dependencies: { icecast: icecastStatus },
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
   })
@@ -407,7 +418,7 @@ async function endBroadcast(channelSlug, reason = 'manual') {
 }
 
 // Helper: Spawn live ffmpeg transcoder to Icecast (MP3 64 kbps mono)
-function spawnLiveFfmpeg(channelSlug) {
+function spawnLiveFfmpeg(channelSlug, inputFormat = 'webm') {
   const icecastUrl = `icecast://source:${encodeURIComponent(
     ICECAST_SOURCE_PASSWORD
   )}@${ICECAST_HOST}:${ICECAST_PORT}/${channelSlug}`
@@ -416,7 +427,7 @@ function spawnLiveFfmpeg(channelSlug) {
     '-loglevel',
     'warning',
     '-f',
-    'webm',
+    inputFormat,
     '-i',
     'pipe:0',
     '-af',
@@ -464,7 +475,7 @@ function spawnLiveFfmpeg(channelSlug) {
 }
 
 // Helper: Spawn separate recording process to save broadcast audio as universal .mp3
-function spawnRecordingFfmpeg(showId, channelSlug) {
+function spawnRecordingFfmpeg(showId, channelSlug, inputFormat = 'webm') {
   try {
     const filename = `${showId || channelSlug || 'recording'}.mp3`
     const recordingFilePath = path.join(RECORDINGS_DIR, filename)
@@ -473,7 +484,7 @@ function spawnRecordingFfmpeg(showId, channelSlug) {
       '-loglevel',
       'warning',
       '-f',
-      'webm',
+      inputFormat,
       '-i',
       'pipe:0',
       '-af',
@@ -563,6 +574,7 @@ wss.on('connection', (ws, req) => {
       // ACTION: START BROADCAST
       if (msg.action === 'start') {
         const { token, channelSlug, showTitle } = msg
+        const inputFormat = typeof msg.audioMimeType === 'string' && msg.audioMimeType.toLowerCase().startsWith('audio/mp4') ? 'mp4' : 'webm'
         if (!token || !channelSlug) {
           ws.send(JSON.stringify({ type: 'error', message: 'Missing token or channelSlug' }))
           return ws.close(4001, 'Missing credentials')
@@ -674,10 +686,10 @@ wss.on('connection', (ws, req) => {
         }
 
         // 1. Spawn primary live Icecast transcoder
-        const ffmpeg = spawnLiveFfmpeg(channel.slug)
+        const ffmpeg = spawnLiveFfmpeg(channel.slug, inputFormat)
 
         // 2. Spawn separate, isolated recording process (lossless Opus to .webm)
-        const { recProc, recordingFilePath } = spawnRecordingFfmpeg(show?.id, channel.slug)
+        const { recProc, recordingFilePath } = spawnRecordingFfmpeg(show?.id, channel.slug, inputFormat)
 
         const session = {
           channelId: channel.id,
@@ -690,6 +702,7 @@ wss.on('connection', (ws, req) => {
           ffmpeg,
           recProc,
           recordingFilePath,
+          inputFormat,
           ws,
           lastAudioTime: Date.now(),
           disconnectTimer: null,
@@ -748,11 +761,8 @@ wss.on('connection', (ws, req) => {
           } catch {}
         }
 
-        const { ffmpeg, recordingFilePath } = spawnFfmpeg(channelSlug, existingSession.showId)
+        const ffmpeg = spawnLiveFfmpeg(channelSlug, existingSession.inputFormat || 'webm')
         existingSession.ffmpeg = ffmpeg
-        if (!existingSession.recordingFilePath) {
-          existingSession.recordingFilePath = recordingFilePath
-        }
         existingSession.ws = ws
         existingSession.lastAudioTime = Date.now()
         ws.session = existingSession

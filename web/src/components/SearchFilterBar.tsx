@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, Tag, X, Filter } from 'lucide-react'
+import { Search, X, Filter } from 'lucide-react'
 
 export function SearchFilterBar() {
   const router = useRouter()

@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Play, Mic, Radio, Volume2, ArrowRight, ShieldCheck, Zap, Users, MessageSquare, BarChart3, Wifi } from 'lucide-react'
+import { Play, Mic, Radio, ArrowRight, Users, MessageSquare, BarChart3, Wifi } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import type { Channel, ScheduledShow } from '@/types/database'
+import type { Channel } from '@/types/database'
 
 interface HomePageProps {
   searchParams?: Promise<{
@@ -40,14 +40,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const liveChannels = (rawLiveChannels || []).filter((c) => c.is_suspended !== true)
   const recentChannels = (rawRecentChannels || []).filter((c) => c.is_suspended !== true)
 
-  // 3. Fetch upcoming scheduled shows
-  const { data: upcomingData } = await supabase
-    .from('scheduled_shows')
-    .select('*, channels(name, slug, cover_url)')
-    .gt('scheduled_at', new Date().toISOString())
-    .order('scheduled_at', { ascending: true })
-    .limit(3)
-
   // 4. Fetch followed channels if user is logged in
   const {
     data: { user },
@@ -68,7 +60,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const liveList: Channel[] = liveChannels || []
   const offlineList: Channel[] = recentChannels || []
-  const upcomingShows = upcomingData || []
   const totalOnAir = liveList.length
 
   // Stations to display in discovery row

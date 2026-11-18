@@ -7,7 +7,7 @@ import { FollowButton } from '@/components/FollowButton'
 import { LiveChat } from '@/components/LiveChat'
 import { RecordingsList } from '@/components/RecordingsList'
 import { StationMobileTabs } from '@/components/StationMobileTabs'
-import { Users, Calendar, Radio, Clock, ShieldAlert, Sparkles, Bell } from 'lucide-react'
+import { Users, Calendar, Radio, Clock, ShieldAlert } from 'lucide-react'
 import type { Channel, Profile, Show, ScheduledShow, Recording } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -206,8 +206,6 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
             channelSlug={channel.slug}
             coverUrl={channel.cover_url}
             hostName={host?.display_name}
-            userLoggedIn={!!user}
-            userDisplayName={userProfile?.display_name || user?.email?.split('@')[0]}
             latestRecording={recordings[0] || null}
           />
 
@@ -218,7 +216,6 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
             chatComponent={
               <LiveChat
                 channelId={channel.id}
-                channelSlug={channel.slug}
                 channelOwnerId={channel.owner_id}
                 currentUserId={user?.id || null}
                 currentUserDisplayName={userProfile?.display_name || user?.email?.split('@')[0]}
@@ -229,7 +226,6 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
               <RecordingsList
                 recordings={recordings}
                 channelName={channel.name}
-                channelSlug={channel.slug}
                 coverUrl={channel.cover_url}
                 isOwner={isOwner}
               />
@@ -339,7 +335,6 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
               <RecordingsList
                 recordings={recordings}
                 channelName={channel.name}
-                channelSlug={channel.slug}
                 coverUrl={channel.cover_url}
                 isOwner={isOwner}
               />
@@ -363,7 +358,6 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
         <div className="hidden lg:block space-y-6">
           <LiveChat
             channelId={channel.id}
-            channelSlug={channel.slug}
             channelOwnerId={channel.owner_id}
             currentUserId={user?.id || null}
             currentUserDisplayName={userProfile?.display_name || user?.email?.split('@')[0]}

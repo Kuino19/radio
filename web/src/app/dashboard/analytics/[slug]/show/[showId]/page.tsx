@@ -3,17 +3,14 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
   ArrowLeft,
-  Calendar,
   Clock,
   Users,
   MessageSquare,
   Smartphone,
-  Globe,
   Radio,
   Play,
-  Share2,
 } from 'lucide-react'
-import type { Channel, Show, ListenSession, ChatMessage, Recording } from '@/types/database'
+import type { Show, ListenSession, ChatMessage, Recording } from '@/types/database'
 
 interface ShowAnalyticsPageProps {
   params: Promise<{
@@ -95,7 +92,7 @@ export default async function ShowAnalyticsPage({ params }: ShowAnalyticsPagePro
 
   const durationMins = show.ended_at
     ? Math.max(1, Math.round((new Date(show.ended_at).getTime() - new Date(show.started_at).getTime()) / 60000))
-    : Math.max(1, Math.round((Date.now() - new Date(show.started_at).getTime()) / 60000))
+    : null
 
   let totalListeningMins = 0
   sessions.forEach((s) => {
@@ -105,6 +102,18 @@ export default async function ShowAnalyticsPage({ params }: ShowAnalyticsPagePro
     if (diff < 360) totalListeningMins += diff
   })
   const avgTuneInMins = sessions.length > 0 ? Math.round(totalListeningMins / sessions.length) : 0
+
+  const countTopValues = (values: string[]) => Object.entries(
+    values.reduce<Record<string, number>>((counts, value) => {
+      counts[value] = (counts[value] || 0) + 1
+      return counts
+    }, {})
+  ).sort((a, b) => b[1] - a[1]).slice(0, 5)
+
+  const topLocations = countTopValues(sessions.map((session) =>
+    session.city && session.country ? `${session.city}, ${session.country}` : session.country || 'Unknown location'
+  ))
+  const topReferrers = countTopValues(sessions.map((session) => session.referrer || 'Direct'))
 
   // Device stats
   let mobileCount = 0
@@ -143,7 +152,7 @@ export default async function ShowAnalyticsPage({ params }: ShowAnalyticsPagePro
             <span>•</span>
             <span>{new Date(show.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             <span>•</span>
-            <span className="font-mono text-[#F2B544]">{durationMins} minutes duration</span>
+            <span className="font-mono text-[#F2B544]">{durationMins ? `${durationMins} minutes duration` : 'In progress'}</span>
           </p>
         </div>
 
@@ -204,6 +213,27 @@ export default async function ShowAnalyticsPage({ params }: ShowAnalyticsPagePro
           <span className="text-[10px] text-[#A39B91]">Audience interactions</span>
         </div>
       </div>
+
+      <section className="grid grid-cols-1 gap-4 rounded-3xl border border-[#2A2724] bg-[#1A1816] p-5 sm:grid-cols-2 sm:p-6">
+        <div className="space-y-3">
+          <h2 className="text-sm font-bold text-[#F4EFE8]">Top listener locations</h2>
+          {topLocations.length ? topLocations.map(([location, count]) => (
+            <div key={location} className="flex items-center justify-between gap-3 text-xs">
+              <span className="truncate text-[#C7BFB4]">{location}</span>
+              <span className="shrink-0 font-mono text-[#F2B544]">{count}</span>
+            </div>
+          )) : <p className="text-xs text-[#A39B91]">Location data will appear as listeners tune in.</p>}
+        </div>
+        <div className="space-y-3">
+          <h2 className="text-sm font-bold text-[#F4EFE8]">How listeners found this show</h2>
+          {topReferrers.length ? topReferrers.map(([referrer, count]) => (
+            <div key={referrer} className="flex items-center justify-between gap-3 text-xs">
+              <span className="truncate text-[#C7BFB4]">{referrer}</span>
+              <span className="shrink-0 font-mono text-[#3DBE7A]">{count}</span>
+            </div>
+          )) : <p className="text-xs text-[#A39B91]">Traffic source data will appear as listeners tune in.</p>}
+        </div>
+      </section>
 
       {/* Recording Player (if archived) */}
       {recording?.audio_url && (

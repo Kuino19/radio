@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { X, Heart, Sparkles, CheckCircle2, Loader2, DollarSign } from 'lucide-react'
+import { X, Heart, Sparkles, CheckCircle2, Loader2 } from 'lucide-react'
 
 interface TipHostModalProps {
   isOpen: boolean

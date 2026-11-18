@@ -5,9 +5,7 @@ import {
   X,
   Sparkles,
   BookOpen,
-  Clock,
   List,
-  FileText,
   Copy,
   Check,
   Play,
@@ -24,7 +22,6 @@ interface ShowNotesModalProps {
   isOpen: boolean
   onClose: () => void
   onRecordingUpdated?: (updated: Recording) => void
-  canEdit?: boolean
 }
 
 export function ShowNotesModal({
@@ -32,7 +29,6 @@ export function ShowNotesModal({
   isOpen,
   onClose,
   onRecordingUpdated,
-  canEdit = false,
 }: ShowNotesModalProps) {
   const { currentTrack, isPlaying, playChannel, togglePlay, seek } = usePlayer()
   const [recording, setRecording] = useState<Recording>(initialRec)

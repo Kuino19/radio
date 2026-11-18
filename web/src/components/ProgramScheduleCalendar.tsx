@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Calendar as CalendarIcon,
@@ -12,8 +12,6 @@ import {
   ChevronRight,
   AlertCircle,
   Loader2,
-  CheckCircle2,
-  Radio,
 } from 'lucide-react'
 import type { ScheduledShow } from '@/types/database'
 
@@ -43,7 +41,7 @@ export function ProgramScheduleCalendar({
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Fetch updated scheduled shows
-  const fetchScheduledShows = async () => {
+  const fetchScheduledShows = useCallback(async () => {
     const { data } = await supabase
       .from('scheduled_shows')
       .select('*')
@@ -51,12 +49,12 @@ export function ProgramScheduleCalendar({
       .order('scheduled_at', { ascending: true })
 
     if (data) setScheduledShows(data)
-  }
+  }, [channelId, supabase])
 
   useEffect(() => {
-    fetchScheduledShows()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId])
+    const timer = window.setTimeout(() => void fetchScheduledShows(), 0)
+    return () => window.clearTimeout(timer)
+  }, [fetchScheduledShows])
 
   // Calendar calculations
   const year = currentDate.getFullYear()

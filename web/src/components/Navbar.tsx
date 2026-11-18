@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Radio, Mic, User as UserIcon, ShieldAlert } from 'lucide-react'
+import { ShieldAlert } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { BrandWordmark } from '@/components/BrandWordmark'
 

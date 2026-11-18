@@ -44,20 +44,23 @@ export function LiveShowExperience({
   const closeChatRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    if (currentUserId) {
-      const name = currentUserDisplayName || 'Listener'
-      setGuestName(name)
-      setListenerName(name)
-      setIdentityReady(true)
-      return
-    }
+    const timer = window.setTimeout(() => {
+      if (currentUserId) {
+        const name = currentUserDisplayName || 'Listener'
+        setGuestName(name)
+        setListenerName(name)
+        setIdentityReady(true)
+        return
+      }
 
-    const savedName = getSavedGuestName()
-    setGuestName(savedName)
-    setNameInput(savedName || '')
-    if (savedName) setListenerName(savedName)
-    setIdentityReady(true)
-  }, [currentUserId, currentUserDisplayName])
+      const savedName = getSavedGuestName()
+      setGuestName(savedName)
+      setNameInput(savedName || '')
+      if (savedName) setListenerName(savedName)
+      setIdentityReady(true)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [currentUserId, currentUserDisplayName, setListenerName])
 
   const displayName = currentUserId ? currentUserDisplayName || guestName : guestName
 
@@ -104,6 +107,7 @@ export function LiveShowExperience({
       <div className="lg:hidden">
         <NativeShowAudio
           channelId={channelId}
+          channelSlug={channelSlug}
           showId={showId}
           isLive={isLive}
           streamUrl={streamUrl}
@@ -162,7 +166,6 @@ export function LiveShowExperience({
             ) : displayName ? (
               <LiveChat
                 channelId={channelId}
-                channelSlug={channelSlug}
                 showId={showId}
                 channelOwnerId={channelOwnerId}
                 currentUserId={currentUserId}

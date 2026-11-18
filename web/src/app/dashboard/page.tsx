@@ -1,10 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { CreatorDashboardHub } from '@/components/CreatorDashboardHub'
+import { CreatorDashboardHub, type CreatorDashboardNav } from '@/components/CreatorDashboardHub'
 import type { Channel, Series, Episode, MonetizationSettings, Tip, Show, Recording, ScheduledShow } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const dashboardTabs: CreatorDashboardNav[] = ['dashboard', 'studio', 'live_events', 'recordings', 'channel', 'analytics', 'series']
+
+function isDashboardTab(tab: string | undefined): tab is CreatorDashboardNav {
+  return !!tab && dashboardTabs.includes(tab as CreatorDashboardNav)
+}
 
 interface DashboardPageProps {
   searchParams?: Promise<{
@@ -134,7 +140,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         upcomingShows={upcomingShows}
         totalListens={totalListens}
         totalFollowers={totalFollowers}
-        initialNav={params.tab as any}
+        initialNav={isDashboardTab(params.tab) ? params.tab : undefined}
         initialChannelSlug={params.channel}
       />
     </div>

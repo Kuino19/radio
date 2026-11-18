@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Layers, Plus, X, Loader2, Sparkles, FolderPlus, Radio, BookOpen } from 'lucide-react'
+import { Layers, Plus, X, FolderPlus, BookOpen } from 'lucide-react'
 import type { Series } from '@/types/database'
 
 interface SeriesManagerProps {

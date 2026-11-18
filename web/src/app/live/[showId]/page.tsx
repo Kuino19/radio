@@ -104,8 +104,6 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
             channelSlug={`live-${show.id}`}
             coverUrl={channel.cover_url}
             hostName={host?.display_name}
-            userLoggedIn={!!user}
-            userDisplayName={user?.email?.split('@')[0] || null}
             latestRecording={recording}
             showSpecific
           />

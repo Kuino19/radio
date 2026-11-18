@@ -70,8 +70,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize saved guest name
   useEffect(() => {
-    const saved = getSavedGuestName()
-    if (saved) setCurrentDisplayName(saved)
+    const timer = window.setTimeout(() => {
+      const saved = getSavedGuestName()
+      if (saved) setCurrentDisplayName(saved)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
   // 15-second listener tracking heartbeat loop

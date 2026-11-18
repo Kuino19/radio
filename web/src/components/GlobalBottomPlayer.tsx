@@ -13,7 +13,6 @@ import {
   Maximize2,
   Minimize2,
   RotateCcw,
-  Wifi,
   Sparkles,
 } from 'lucide-react'
 
@@ -26,7 +25,6 @@ export function GlobalBottomPlayer() {
     isMuted,
     volume,
     isExpanded,
-    bufferHealth,
     audioQuality,
     currentDisplayName,
     togglePlay,

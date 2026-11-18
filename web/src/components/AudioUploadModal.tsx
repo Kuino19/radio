@@ -1,16 +1,13 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   UploadCloud,
   X,
   FileAudio,
   CheckCircle2,
-  Calendar,
   Lock,
-  Globe,
-  Tag,
   Loader2,
   Image as ImageIcon,
   Clock,
@@ -52,7 +49,6 @@ export function AudioUploadModal({
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [isPremium, setIsPremium] = useState(false)
-  const [tierRequired, setTierRequired] = useState('supporter')
   const [publishMode, setPublishMode] = useState<'immediate' | 'scheduled'>('immediate')
   const [scheduledDate, setScheduledDate] = useState('')
 
@@ -230,7 +226,7 @@ export function AudioUploadModal({
         category,
         tags,
         is_premium: isPremium,
-        tier_required: isPremium ? tierRequired : 'free',
+        tier_required: isPremium ? 'supporter' : 'free',
         scheduled_for: isScheduled ? new Date(scheduledDate).toISOString() : null,
         is_published: !isScheduled,
         play_count: 0,

@@ -12,22 +12,10 @@ import {
   BarChart3,
   Copy,
   Check,
-  Plus,
   ExternalLink,
-  Clock,
-  Globe,
-  ChevronDown,
   UploadCloud,
   Layers,
-  HelpCircle,
   Sparkles,
-  ArrowRight,
-  Play,
-  Volume2,
-  Users,
-  Activity,
-  Headphones,
-  Upload,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -40,6 +28,8 @@ import { StudioCockpit } from '@/components/StudioCockpit'
 import { ShowNotesModal } from '@/components/ShowNotesModal'
 import type { Channel, Series, Episode, MonetizationSettings, Tip, Show, Recording, ScheduledShow } from '@/types/database'
 
+export type CreatorDashboardNav = 'dashboard' | 'studio' | 'live_events' | 'recordings' | 'channel' | 'analytics' | 'series'
+
 interface CreatorDashboardHubProps {
   channels: Channel[]
   series: Series[]
@@ -51,16 +41,13 @@ interface CreatorDashboardHubProps {
   upcomingShows?: ScheduledShow[]
   totalListens?: number
   totalFollowers?: number
-  initialNav?: 'dashboard' | 'studio' | 'live_events' | 'recordings' | 'channel' | 'analytics' | 'series'
+  initialNav?: CreatorDashboardNav
   initialChannelSlug?: string
 }
 
 export function CreatorDashboardHub({
   channels: initialChannels,
   series: initialSeries,
-  episodes: initialEpisodes,
-  monetization,
-  tips,
   recentShows = [],
   recordings = [],
   upcomingShows: initialUpcomingShows = [],
@@ -77,7 +64,7 @@ export function CreatorDashboardHub({
   const [selectedChannelId, setSelectedChannelId] = useState<string>(
     matchedChannel?.id || initialChannels[0]?.id || ''
   )
-  const [activeNav, setActiveNav] = useState<'dashboard' | 'studio' | 'live_events' | 'recordings' | 'channel' | 'analytics' | 'series'>(
+  const [activeNav, setActiveNav] = useState<CreatorDashboardNav>(
     initialNav || 'dashboard'
   )
   const [dashboardSubTab, setDashboardSubTab] = useState<'live_events' | 'recordings'>('live_events')
@@ -100,9 +87,12 @@ export function CreatorDashboardHub({
 
   useEffect(() => {
     if (currentChannel) {
-      setChannelName(currentChannel.name)
-      setChannelDesc(currentChannel.description || '')
-      setCoverPreview(currentChannel.cover_url || null)
+      const timer = window.setTimeout(() => {
+        setChannelName(currentChannel.name)
+        setChannelDesc(currentChannel.description || '')
+        setCoverPreview(currentChannel.cover_url || null)
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
   }, [currentChannel])
 
@@ -1021,7 +1011,6 @@ export function CreatorDashboardHub({
           recording={selectedRecForNotes}
           isOpen={!!selectedRecForNotes}
           onClose={() => setSelectedRecForNotes(null)}
-          canEdit={true}
           onRecordingUpdated={(updated) => {
             setRecordingsList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
             setSelectedRecForNotes(updated)

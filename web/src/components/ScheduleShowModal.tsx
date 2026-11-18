@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Calendar, Clock, AlertCircle, Loader2, Sparkles, X } from 'lucide-react'
+import { Calendar, AlertCircle, Loader2, Sparkles, X } from 'lucide-react'
 
 interface ScheduleShowModalProps {
   channelId: string

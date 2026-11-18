@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AnalyticsCharts } from '@/components/AnalyticsCharts'
-import { ArrowLeft, Radio, Mic, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Mic, ExternalLink } from 'lucide-react'
 import type { Channel, Show, ListenSession } from '@/types/database'
 
 interface AnalyticsPageProps {

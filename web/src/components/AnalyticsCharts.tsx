@@ -194,7 +194,34 @@ export function AnalyticsCharts({
           <div className="text-2xl sm:text-3xl font-extrabold text-white">{followerCount}</div>
           <p className="text-[11px] text-zinc-500 mt-1">{totalShows} shows broadcast</p>
         </div>
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-zinc-400 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider">Chat Messages</span>
+            <Share2 className="h-4 w-4 text-sky-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">{chatCount}</div>
+          <p className="text-[11px] text-zinc-500 mt-1">Messages across your broadcasts</p>
+        </div>
       </div>
+
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-white">Top Listener Locations</h3>
+          <Globe className="h-4 w-4 text-emerald-400" />
+        </div>
+        {topLocations.length === 0 ? (
+          <p className="text-xs text-zinc-500">Location data will appear as listeners tune in.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {topLocations.map((location) => (
+              <div key={location.name} className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+                <p className="truncate text-xs font-semibold text-white">{location.name}</p>
+                <p className="mt-1 text-[11px] text-zinc-500">{location.count} sessions</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Main Chart: Show Peak Listeners Timeline */}
       <div className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6 backdrop-blur-xl space-y-4">

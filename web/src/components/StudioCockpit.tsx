@@ -6,24 +6,23 @@ import { LiveChat } from '@/components/LiveChat'
 import { SocialShareModal } from '@/components/SocialShareModal'
 import {
   Mic,
-  MicOff,
   Radio,
   Share2,
   Copy,
   Check,
-  AlertTriangle,
   AlertCircle,
   RotateCcw,
   Square,
   Users,
-  Clock,
-  Sparkles,
-  ExternalLink,
-  ChevronDown,
 } from 'lucide-react'
 import type { Channel } from '@/types/database'
 
 type StudioState = 'ready' | 'connecting' | 'on_air' | 'reconnecting' | 'ended'
+
+function preferredAudioMimeType() {
+  if (typeof MediaRecorder === 'undefined') return ''
+  return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type)) || ''
+}
 
 interface StudioCockpitProps {
   channel: Channel
@@ -41,9 +40,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const [isChangingMic, setIsChangingMic] = useState(false)
   const [micLevel, setMicLevel] = useState<number>(0)
   const [micError, setMicError] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState<string>('')
+  const [reconnectCountdown, setReconnectCountdown] = useState(30)
   const [liveDuration, setLiveDuration] = useState<number>(0)
-  const [reconnectCountdown, setReconnectCountdown] = useState<number>(30)
   const [copiedLink, setCopiedLink] = useState(false)
   const [currentShowId, setCurrentShowId] = useState<string | null>(null)
   const [currentListeners, setCurrentListeners] = useState(0)
@@ -51,6 +49,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const [activeListenerList, setActiveListenerList] = useState<{ id: string; displayName: string; isGuest: boolean }[]>([])
   const [newFollowers, setNewFollowers] = useState(0)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [confirmEndShow, setConfirmEndShow] = useState(false)
+  const [isCheckingMic, setIsCheckingMic] = useState(false)
 
   // Hardware and Network references
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -73,8 +73,31 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
       setPeakListeners(0)
       setActiveListenerList([])
       setNewFollowers(0)
+      setLiveDuration(0)
     }
     setCurrentShowId(showId)
+  }
+
+  function cleanupBroadcast() {
+    broadcastStartedRef.current = false
+    reconnectingRef.current = false
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {}
+    }
+    if (socketRef.current) {
+      try {
+        if (socketRef.current.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({ action: 'stop' }))
+        }
+        socketRef.current.close()
+      } catch {}
+      socketRef.current = null
+    }
+    if (liveTimerRef.current) clearInterval(liveTimerRef.current)
+    if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
   }
 
   // 1. Initialize microphone with safe error handling
@@ -172,7 +195,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   }, [])
 
   useEffect(() => {
-    initMicrophone()
+    const initTimer = window.setTimeout(() => void initMicrophone(), 0)
 
     const handleDeviceChange = () => {
       navigator.mediaDevices?.enumerateDevices().then((devices) => {
@@ -184,6 +207,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     navigator.mediaDevices?.addEventListener('devicechange', handleDeviceChange)
 
     return () => {
+      window.clearTimeout(initTimer)
       navigator.mediaDevices?.removeEventListener('devicechange', handleDeviceChange)
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop())
@@ -213,7 +237,6 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
       }, 1000)
     } else {
       if (liveTimerRef.current) clearInterval(liveTimerRef.current)
-      if (studioState === 'ready') setLiveDuration(0)
     }
 
     return () => {
@@ -320,7 +343,6 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     }
 
     setStudioState('connecting')
-    setStatusMessage('Connecting to streaming server...')
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.access_token) {
@@ -334,20 +356,20 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     try {
       ws = new WebSocket(wsUrl)
       socketRef.current = ws
-    } catch (wsErr) {
+    } catch {
       setStudioState('ready')
       setMicError('Could not reach streaming endpoint. Please verify connection.')
       return
     }
 
     ws.onopen = () => {
-      setStatusMessage('Authenticating channel...')
       ws.send(
         JSON.stringify({
           action: 'start',
           token: session.access_token,
           channelSlug: channel.slug,
           showTitle: showTitle.trim() || `${channel.name} Live`,
+          audioMimeType: preferredAudioMimeType(),
         })
       )
     }
@@ -382,7 +404,6 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
           setStudioState('on_air')
           broadcastStartedRef.current = true
           reconnectingRef.current = false
-          setStatusMessage('')
           if (typeof msg.showId === 'string') setActiveShowId(msg.showId)
           startMediaRecorder(ws)
         } else if (isError) {
@@ -427,20 +448,10 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const startMediaRecorder = (ws: WebSocket) => {
     if (!mediaStreamRef.current) return
 
-    let mimeType = 'audio/webm;codecs=opus'
-    if (typeof MediaRecorder !== 'undefined') {
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        if (MediaRecorder.isTypeSupported('audio/webm')) {
-          mimeType = 'audio/webm'
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          mimeType = 'audio/mp4'
-        } else {
-          mimeType = ''
-        }
-      }
-    }
+    const mimeType = preferredAudioMimeType()
 
     try {
+      if (!mimeType) throw new Error('This browser cannot record a supported audio format.')
       const recorder = new MediaRecorder(
         mediaStreamRef.current,
         mimeType ? { mimeType, audioBitsPerSecond: 64000 } : undefined
@@ -507,6 +518,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             action: 'reconnect',
             token: session.access_token,
             channelSlug: channel.slug,
+            audioMimeType: preferredAudioMimeType(),
           })
         )
       }
@@ -545,33 +557,17 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     tryConnect()
   }
 
-  // 5. Clean up broadcast
-  const cleanupBroadcast = () => {
-    broadcastStartedRef.current = false
-    reconnectingRef.current = false
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop()
-      } catch {}
-    }
-    if (socketRef.current) {
-      try {
-        if (socketRef.current.readyState === WebSocket.OPEN) {
-          socketRef.current.send(JSON.stringify({ action: 'stop' }))
-        }
-        socketRef.current.close()
-      } catch {}
-      socketRef.current = null
-    }
-    if (liveTimerRef.current) clearInterval(liveTimerRef.current)
-    if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
-    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-  }
-
   // 6. END SHOW
   const handleEndShow = () => {
     cleanupBroadcast()
     setStudioState('ended')
+    setConfirmEndShow(false)
+  }
+
+  const handleMicCheck = async () => {
+    setIsCheckingMic(true)
+    await initMicrophone(selectedDeviceId || undefined)
+    setIsCheckingMic(false)
   }
 
   const handleCopyLink = async () => {
@@ -741,10 +737,10 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
 
                   <div className="w-44 h-44 sm:w-48 sm:h-48 rounded-full bg-[#FF4A3D] text-white flex flex-col items-center justify-center shadow-[0_0_50px_rgba(255,74,61,0.45)] select-none">
                     <span className="font-display font-black text-2xl tracking-wider uppercase drop-shadow">
-                      ON AIR
+                      {studioState === 'reconnecting' ? 'RECONNECTING' : 'ON AIR'}
                     </span>
                     <span className="font-mono font-bold text-lg tracking-widest mt-1 text-white/95">
-                      {formatTime(liveDuration)}
+                      {studioState === 'reconnecting' ? `${reconnectCountdown}s` : formatTime(liveDuration)}
                     </span>
                   </div>
                 </div>
@@ -800,7 +796,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             <div className="rounded-2xl bg-[#0E0D0C] border border-[#2A2724] p-4 space-y-2">
               <div className="flex items-center justify-between text-xs text-[#A39B91]">
                 <span className="font-medium">Microphone Level</span>
-                <span className="font-mono text-[11px]">{micLevel}%</span>
+                <span className="font-mono text-[11px]" aria-live="polite">{micLevel}%</span>
               </div>
 
               <div className="flex items-center gap-1 h-3 w-full">
@@ -822,6 +818,16 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
                     />
                   )
                 })}
+              </div>
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                <p className={`text-[11px] ${micLevel < 3 ? 'text-[#F2B544]' : micLevel > 85 ? 'text-[#FF756C]' : 'text-[#3DBE7A]'}`}>
+                  {micLevel < 3 ? 'Speak into the mic to check your input.' : micLevel > 85 ? 'Input is very loud. Move back or lower your mic gain.' : 'Mic is picking up audio.'}
+                </p>
+                {studioState === 'ready' && (
+                  <button type="button" onClick={() => void handleMicCheck()} disabled={isCheckingMic} className="min-h-10 rounded-xl border border-[#3A3020] px-3 text-xs font-semibold text-[#F2B544] disabled:opacity-50">
+                    {isCheckingMic ? 'Checking microphone…' : 'Test microphone'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -866,12 +872,24 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             {(studioState === 'on_air' || studioState === 'reconnecting') && (
               <button
                 type="button"
-                onClick={handleEndShow}
+                onClick={() => setConfirmEndShow(true)}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#FF4A3D] py-4 px-6 text-sm sm:text-base font-bold text-white hover:brightness-110 active:scale-95 transition-all shadow-lg cursor-pointer"
               >
                 <Square className="w-4 h-4 fill-current" />
                 <span>End show & finalize recording</span>
               </button>
+            )}
+            {confirmEndShow && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4" role="presentation">
+                <section role="alertdialog" aria-modal="true" aria-labelledby="end-show-title" className="w-full max-w-md rounded-2xl border border-[#3A3020] bg-[#171513] p-5 shadow-2xl">
+                  <h2 id="end-show-title" className="font-display text-lg font-bold text-[#F4EFE8]">End this live show?</h2>
+                  <p className="mt-2 text-sm text-[#A39B91]">Listeners will be disconnected and the recording will be finalized. You can’t resume this show after ending it.</p>
+                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" autoFocus onClick={() => setConfirmEndShow(false)} className="min-h-11 rounded-xl border border-[#39332A] px-4 text-sm font-semibold text-[#C7BFB4]">Keep broadcasting</button>
+                    <button type="button" onClick={handleEndShow} className="min-h-11 rounded-xl bg-[#FF4A3D] px-4 text-sm font-bold text-white">End show</button>
+                  </div>
+                </section>
+              </div>
             )}
           </div>
         </div>
@@ -924,7 +942,6 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
           <div className="rounded-3xl border border-[#2A2724] bg-[#141210] p-4 shadow-xl">
             <LiveChat
               channelId={channel.id}
-              channelSlug={channel.slug}
               showId={currentShowId}
               channelOwnerId={channel.owner_id}
               currentUserId={channel.owner_id}

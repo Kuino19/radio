@@ -9,5 +9,5 @@ export function BrandWordmark({
   size?: 'sm' | 'md' | 'lg' | 'xl'
   withDot?: boolean
 }) {
-  return <BrandLogo className={className} size={size} variant="full" />
+  return <BrandLogo className={className} size={size} variant="full" withDot={withDot} />
 }

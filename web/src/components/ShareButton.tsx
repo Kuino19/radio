@@ -22,7 +22,7 @@ export function ShareButton({ channelName, channelSlug }: ShareButtonProps) {
           url,
         })
         return
-      } catch (err) {
+    } catch {
         // User cancelled or unsupported, fallback to clipboard
       }
     }
