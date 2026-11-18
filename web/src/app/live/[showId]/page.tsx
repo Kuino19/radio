@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, Radio } from 'lucide-react'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { LiveShowExperience } from '@/components/LiveShowExperience'
@@ -34,6 +34,24 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
   if (!channelData) notFound()
   const channel = channelData as Channel
   const recording = recordingData as Recording | null
+  const streamBaseUrl = (process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com').replace(/\/+$/, '')
+  let activeShowId: string | null = null
+  let streamStatusAvailable = false
+  try {
+    const liveStatusResponse = await fetch(`${streamBaseUrl}/api/live-status/${encodeURIComponent(channel.slug)}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(2500),
+    })
+    if (liveStatusResponse.ok) {
+      streamStatusAvailable = true
+      const liveStatus = await liveStatusResponse.json() as { isLive?: boolean; showId?: string | null }
+      if (liveStatus.isLive && liveStatus.showId) activeShowId = liveStatus.showId
+    }
+  } catch {
+    // Fall back to the database flags if the streaming status endpoint is unavailable.
+  }
+  if (!streamStatusAvailable) activeShowId = channel.is_live ? latestShowData?.id || null : null
+  if (activeShowId && activeShowId !== show.id) redirect(`/live/${activeShowId}`)
   const [{ data: hostData }, { data: { user } }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', channel.owner_id).maybeSingle(),
     supabase.auth.getUser(),
@@ -42,8 +60,7 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
     ? await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
     : { data: null }
   const host = hostData as Profile | null
-  const streamBaseUrl = process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com'
-  const isLive = channel.is_live && latestShowData?.id === show.id
+  const isLive = activeShowId === show.id
 
   return (
     <main className="mx-auto max-w-3xl px-3 py-5 sm:px-6 sm:py-10 space-y-5 sm:space-y-7">

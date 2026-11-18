@@ -186,6 +186,19 @@ const wss = new WebSocketServer({
 // Map<string, BroadcastSession>
 const activeBroadcasts = new Map()
 
+// The in-memory broadcast session is the authoritative source for live status.
+// Database flags can lag or refer to a previous show while a new show is on air.
+app.get('/api/live-status/:channelSlug', (req, res) => {
+  const session = activeBroadcasts.get(req.params.channelSlug)
+  const isLive = !!session && !!session.showId && !!session.ffmpeg && !session.ffmpeg.killed && session.ffmpeg.exitCode === null
+  res.set('Cache-Control', 'no-store')
+  res.json({
+    isLive,
+    showId: isLive ? session.showId : null,
+    showTitle: isLive ? session.showTitle : null,
+  })
+})
+
 // Reset any dangling live channels on server boot
 async function resetDanglingChannels() {
   try {
