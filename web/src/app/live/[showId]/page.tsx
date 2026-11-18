@@ -25,9 +25,10 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
   if (!showData) notFound()
   const show = showData as Show
 
-  const [{ data: channelData }, { data: recordingData }] = await Promise.all([
+  const [{ data: channelData }, { data: recordingData }, { data: latestShowData }] = await Promise.all([
     supabase.from('channels').select('*').eq('id', show.channel_id).maybeSingle(),
     supabase.from('recordings').select('*').eq('show_id', show.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('shows').select('id').eq('channel_id', show.channel_id).order('started_at', { ascending: false }).limit(1).maybeSingle(),
   ])
 
   if (!channelData) notFound()
@@ -42,7 +43,7 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
     : { data: null }
   const host = hostData as Profile | null
   const streamBaseUrl = process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com'
-  const isLive = channel.is_live && !show.ended_at
+  const isLive = channel.is_live && latestShowData?.id === show.id
 
   return (
     <main className="mx-auto max-w-3xl px-3 py-5 sm:px-6 sm:py-10 space-y-5 sm:space-y-7">
@@ -76,7 +77,7 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
           </div>
         </div>
 
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           <AudioPlayer
             channelId={channel.id}
             showId={show.id}

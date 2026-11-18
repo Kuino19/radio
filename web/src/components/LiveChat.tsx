@@ -24,6 +24,7 @@ interface LiveChatProps {
   currentUserId?: string | null
   currentUserDisplayName?: string | null
   isOwner?: boolean
+  hideHeader?: boolean
 }
 
 export function LiveChat({
@@ -34,6 +35,7 @@ export function LiveChat({
   currentUserId,
   currentUserDisplayName,
   isOwner = false,
+  hideHeader = false,
 }: LiveChatProps) {
   const supabase = createClient()
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -254,9 +256,9 @@ export function LiveChat({
   }
 
   return (
-    <div className="flex h-[min(64vh,520px)] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-xl backdrop-blur-xl sm:h-[520px]">
+    <div className="flex h-[min(58vh,460px)] min-h-[300px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-xl backdrop-blur-xl sm:h-[clamp(320px,46vh,440px)] sm:min-h-0 lg:h-[520px]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 bg-zinc-950/60">
+      {!hideHeader && <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 bg-zinc-950/60">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-red-500" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-white">
@@ -267,7 +269,7 @@ export function LiveChat({
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Realtime
         </span>
-      </div>
+      </div>}
 
       {/* Messages List */}
       <div
