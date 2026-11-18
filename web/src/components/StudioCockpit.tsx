@@ -46,8 +46,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const [reconnectCountdown, setReconnectCountdown] = useState<number>(30)
   const [copiedLink, setCopiedLink] = useState(false)
   const [currentShowId, setCurrentShowId] = useState<string | null>(null)
-  const [currentListeners, setCurrentListeners] = useState(channel.current_listeners || 0)
-  const [peakListeners, setPeakListeners] = useState(channel.current_listeners || 0)
+  const [currentListeners, setCurrentListeners] = useState(0)
+  const [peakListeners, setPeakListeners] = useState(0)
   const [activeListenerList, setActiveListenerList] = useState<{ id: string; displayName: string; isGuest: boolean }[]>([])
   const [newFollowers, setNewFollowers] = useState(0)
   const [showShareModal, setShowShareModal] = useState(false)
@@ -64,6 +64,18 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectingRef = useRef(false)
   const broadcastStartedRef = useRef(false)
+  const currentShowIdRef = useRef<string | null>(null)
+
+  const setActiveShowId = (showId: string) => {
+    if (currentShowIdRef.current !== showId) {
+      currentShowIdRef.current = showId
+      setCurrentListeners(0)
+      setPeakListeners(0)
+      setActiveListenerList([])
+      setNewFollowers(0)
+    }
+    setCurrentShowId(showId)
+  }
 
   // 1. Initialize microphone with safe error handling
   const initMicrophone = useCallback(async (deviceId?: string) => {
@@ -251,11 +263,17 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   useEffect(() => {
     const fetchLiveStats = async () => {
       try {
+        if (!currentShowId) {
+          setActiveListenerList([])
+          setCurrentListeners(0)
+          return
+        }
         const ninetySecondsAgo = new Date(Date.now() - 90000).toISOString()
         const { data: sessions, count } = await supabase
           .from('listen_sessions')
           .select('id, display_name, is_guest', { count: 'exact' })
           .eq('channel_id', channel.id)
+          .eq('show_id', currentShowId)
           .gt('last_seen_at', ninetySecondsAgo)
           .is('left_at', null)
           .order('last_seen_at', { ascending: false })
@@ -281,7 +299,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     const pollId = setInterval(fetchLiveStats, 5000)
 
     return () => clearInterval(pollId)
-  }, [channel.id, supabase])
+  }, [channel.id, currentShowId, supabase])
 
   // 2. START BROADCAST (GO LIVE)
   const handleGoLive = async () => {
@@ -365,7 +383,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
           broadcastStartedRef.current = true
           reconnectingRef.current = false
           setStatusMessage('')
-          if (typeof msg.showId === 'string') setCurrentShowId(msg.showId)
+          if (typeof msg.showId === 'string') setActiveShowId(msg.showId)
           startMediaRecorder(ws)
         } else if (isError) {
           if (connectTimeout) {
@@ -508,7 +526,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             broadcastStartedRef.current = true
             if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-            if (typeof msg.showId === 'string') setCurrentShowId(msg.showId)
+            if (typeof msg.showId === 'string') setActiveShowId(msg.showId)
             setStudioState('on_air')
             startMediaRecorder(ws)
           } else if (msg.type === 'reconnect_failed' || msg.type === 'error' || msg.status === 'error') {
@@ -907,6 +925,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             <LiveChat
               channelId={channel.id}
               channelSlug={channel.slug}
+              showId={currentShowId}
               channelOwnerId={channel.owner_id}
               currentUserId={channel.owner_id}
               currentUserDisplayName={channel.name}

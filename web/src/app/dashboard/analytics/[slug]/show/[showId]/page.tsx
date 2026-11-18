@@ -59,26 +59,22 @@ export default async function ShowAnalyticsPage({ params }: ShowAnalyticsPagePro
 
   const show: Show = showData
 
-  // 3. Fetch listen sessions for this show
-  const startTime = show.started_at
-  const endTime = show.ended_at || new Date().toISOString()
-
+  // 3. Fetch only sessions attributed to this show/event.
   const { data: sessionsData } = await supabase
     .from('listen_sessions')
     .select('*')
     .eq('channel_id', channel.id)
-    .or(`show_id.eq.${show.id},and(joined_at.gte.${startTime},joined_at.lte.${endTime})`)
+    .eq('show_id', show.id)
     .order('joined_at', { ascending: false })
 
   const sessions: ListenSession[] = sessionsData || []
 
-  // 4. Fetch chat messages sent during this show
+  // 4. Fetch only chat messages attributed to this show/event.
   const { data: chatData } = await supabase
     .from('chat_messages')
     .select('*')
     .eq('channel_id', channel.id)
-    .gte('created_at', startTime)
-    .lte('created_at', endTime)
+    .eq('show_id', show.id)
     .order('created_at', { ascending: true })
 
   const messages: ChatMessage[] = chatData || []

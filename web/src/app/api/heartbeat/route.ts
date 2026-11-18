@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     let activeSession = null
 
     if (userId) {
-      const { data, error } = await supabase
+      let sessionQuery = supabase
         .from('listen_sessions')
         .select('id')
         .eq('channel_id', channelId)
@@ -88,12 +88,12 @@ export async function POST(request: Request) {
         .gt('last_seen_at', ninetySecondsAgo)
         .is('left_at', null)
         .order('last_seen_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      sessionQuery = showId ? sessionQuery.eq('show_id', showId) : sessionQuery.is('show_id', null)
+      const { data, error } = await sessionQuery.limit(1).maybeSingle()
       if (error) throw error
       activeSession = data
     } else if (anonId) {
-      const { data, error } = await supabase
+      let sessionQuery = supabase
         .from('listen_sessions')
         .select('id')
         .eq('channel_id', channelId)
@@ -101,8 +101,8 @@ export async function POST(request: Request) {
         .gt('last_seen_at', ninetySecondsAgo)
         .is('left_at', null)
         .order('last_seen_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      sessionQuery = showId ? sessionQuery.eq('show_id', showId) : sessionQuery.is('show_id', null)
+      const { data, error } = await sessionQuery.limit(1).maybeSingle()
       if (error) throw error
       activeSession = data
     }
@@ -139,12 +139,14 @@ export async function POST(request: Request) {
     }
 
     // 3. Calculate exact active listeners (sessions seen in last 90 seconds)
-    const { count: activeListeners, error: countError } = await supabase
+    let countQuery = supabase
       .from('listen_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('channel_id', channelId)
       .gt('last_seen_at', ninetySecondsAgo)
       .is('left_at', null)
+    if (showId) countQuery = countQuery.eq('show_id', showId)
+    const { count: activeListeners, error: countError } = await countQuery
     if (countError) throw countError
 
     const count = activeListeners ?? 0

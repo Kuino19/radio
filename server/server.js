@@ -96,7 +96,7 @@ app.post('/api/heartbeat', async (req, res) => {
     // 1. Upsert listen session
     let existing = null
     if (userId) {
-      const { data } = await supabase
+      let sessionQuery = supabase
         .from('listen_sessions')
         .select('id')
         .eq('channel_id', channelId)
@@ -104,11 +104,12 @@ app.post('/api/heartbeat', async (req, res) => {
         .gt('last_seen_at', ninetySecondsAgo)
         .is('left_at', null)
         .order('last_seen_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      sessionQuery = showId ? sessionQuery.eq('show_id', showId) : sessionQuery.is('show_id', null)
+      const { data, error } = await sessionQuery.limit(1).maybeSingle()
+      if (error) throw error
       existing = data
     } else if (anonId) {
-      const { data } = await supabase
+      let sessionQuery = supabase
         .from('listen_sessions')
         .select('id')
         .eq('channel_id', channelId)
@@ -116,8 +117,9 @@ app.post('/api/heartbeat', async (req, res) => {
         .gt('last_seen_at', ninetySecondsAgo)
         .is('left_at', null)
         .order('last_seen_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      sessionQuery = showId ? sessionQuery.eq('show_id', showId) : sessionQuery.is('show_id', null)
+      const { data, error } = await sessionQuery.limit(1).maybeSingle()
+      if (error) throw error
       existing = data
     }
 
@@ -144,12 +146,14 @@ app.post('/api/heartbeat', async (req, res) => {
     }
 
     // 2. Count active sessions
-    const { count: activeCount, error: countError } = await supabase
+    let countQuery = supabase
       .from('listen_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('channel_id', channelId)
       .gt('last_seen_at', ninetySecondsAgo)
       .is('left_at', null)
+    if (showId) countQuery = countQuery.eq('show_id', showId)
+    const { count: activeCount, error: countError } = await countQuery
     if (countError) throw countError
 
     const finalCount = activeCount ?? 0
@@ -660,10 +664,11 @@ wss.on('connection', (ws, req) => {
 
         // Mark channel as live
         try {
-          await supabase
+          const { error: liveUpdateError } = await supabase
             .from('channels')
-            .update({ is_live: true })
+            .update({ is_live: true, current_listeners: 0 })
             .eq('id', channel.id)
+          if (liveUpdateError) throw liveUpdateError
         } catch (liveErr) {
           console.warn('[DB] Channel live update warning:', liveErr.message)
         }
