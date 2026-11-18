@@ -22,12 +22,13 @@ export function MobileNav() {
   const isProfile = pathname.startsWith('/dashboard') || pathname === '/login'
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0E0D0C]/95 backdrop-blur-md border-t border-[#2A2724] px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+    <nav aria-label="Main navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0E0D0C]/95 backdrop-blur-md border-t border-[#2A2724] px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center justify-around max-w-md mx-auto relative">
         {/* Home */}
         <Link
           href="/"
-          className={`flex flex-col items-center gap-1 py-1 px-3 text-[11px] font-medium transition-colors ${
+          aria-current={isHome ? 'page' : undefined}
+          className={`flex min-w-14 min-h-12 flex-col items-center justify-center gap-1 py-1 px-2 text-[11px] font-medium transition-colors ${
             isHome ? 'text-[#F2B544]' : 'text-[#A39B91] hover:text-[#F4EFE8]'
           }`}
         >
@@ -38,7 +39,8 @@ export function MobileNav() {
         {/* Explore / Search */}
         <Link
           href="/explore"
-          className={`flex flex-col items-center gap-1 py-1 px-3 text-[11px] font-medium transition-colors ${
+          aria-current={isExplore ? 'page' : undefined}
+          className={`flex min-w-14 min-h-12 flex-col items-center justify-center gap-1 py-1 px-2 text-[11px] font-medium transition-colors ${
             isExplore ? 'text-[#F2B544]' : 'text-[#A39B91] hover:text-[#F4EFE8]'
           }`}
         >
@@ -51,7 +53,7 @@ export function MobileNav() {
           <Link
             href="/dashboard"
             aria-label="Go live"
-            className="w-13 h-13 rounded-full bg-[#FF4A3D] text-white flex items-center justify-center shadow-[0_4px_16px_rgba(255,74,61,0.45)] hover:scale-105 active:scale-95 transition-transform"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4A3D] text-white shadow-[0_4px_16px_rgba(255,74,61,0.45)] hover:scale-105 active:scale-95 transition-transform"
           >
             <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-[#FF4A3D]" />
@@ -63,7 +65,8 @@ export function MobileNav() {
         {/* Library / Saved */}
         <Link
           href="/library"
-          className={`flex flex-col items-center gap-1 py-1 px-3 text-[11px] font-medium transition-colors ${
+          aria-current={isLibrary ? 'page' : undefined}
+          className={`flex min-w-14 min-h-12 flex-col items-center justify-center gap-1 py-1 px-2 text-[11px] font-medium transition-colors ${
             isLibrary ? 'text-[#F2B544]' : 'text-[#A39B91] hover:text-[#F4EFE8]'
           }`}
         >
@@ -74,6 +77,7 @@ export function MobileNav() {
         {/* Profile */}
         <Link
           href="/dashboard"
+          aria-current={isProfile ? 'page' : undefined}
           className={`flex flex-col items-center gap-1 py-1 px-3 text-[11px] font-medium transition-colors ${
             isProfile ? 'text-[#F2B544]' : 'text-[#A39B91] hover:text-[#F4EFE8]'
           }`}

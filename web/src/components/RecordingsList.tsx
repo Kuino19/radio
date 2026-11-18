@@ -89,7 +89,7 @@ export function RecordingsList({
               <button
                 type="button"
                 onClick={() => handlePlayRecording(rec)}
-                className={`flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md transition-all shrink-0 ${
+                className={`flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-xl text-white shadow-md transition-all shrink-0 active:scale-95 touch-manipulation ${
                   isThisPlaying
                     ? 'bg-zinc-800 text-red-400 border border-zinc-700'
                     : 'bg-red-600 hover:bg-red-500 shadow-red-950/50'

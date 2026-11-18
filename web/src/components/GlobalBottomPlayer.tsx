@@ -174,7 +174,7 @@ export function GlobalBottomPlayer() {
 
       {/* 2. Fullscreen Sheet Player View */}
       {isExpanded && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-between bg-[#0E0D0C]/98 p-6 sm:p-10 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex min-h-[100dvh] flex-col justify-between overflow-y-auto bg-[#0E0D0C]/98 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-10 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
           {/* Top Bar */}
           <div className="flex items-center justify-between max-w-lg mx-auto w-full">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1816] px-3 py-1 text-xs font-bold text-[#FF4A3D] border border-[#FF4A3D]/30">
@@ -191,17 +191,17 @@ export function GlobalBottomPlayer() {
           </div>
 
           {/* Middle: Big Album Art & Details */}
-          <div className="flex flex-col items-center text-center space-y-6 max-w-sm mx-auto my-auto w-full">
+          <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6 max-w-sm mx-auto my-4 sm:my-auto w-full">
             <div className="relative">
               {currentTrack.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentTrack.coverUrl}
                   alt={currentTrack.channelName}
-                  className="h-56 w-56 sm:h-64 sm:w-64 rounded-3xl object-cover shadow-2xl border border-[#2A2724]"
+                  className="h-[min(56vw,14rem)] w-[min(56vw,14rem)] sm:h-64 sm:w-64 rounded-3xl object-cover shadow-2xl border border-[#2A2724]"
                 />
               ) : (
-                <div className="flex h-56 w-56 sm:h-64 sm:w-64 items-center justify-center rounded-3xl bg-[#1A1816] text-[#F2B544] font-bold text-5xl border border-[#2A2724] shadow-2xl">
+                <div className="flex h-[min(56vw,14rem)] w-[min(56vw,14rem)] sm:h-64 sm:w-64 items-center justify-center rounded-3xl bg-[#1A1816] text-[#F2B544] font-bold text-5xl border border-[#2A2724] shadow-2xl">
                   <Radio className="h-20 w-20" />
                 </div>
               )}
@@ -244,7 +244,7 @@ export function GlobalBottomPlayer() {
           </div>
 
           {/* Bottom Playback Controls */}
-          <div className="flex flex-col items-center gap-6 max-w-sm mx-auto w-full pb-6">
+          <div className="flex flex-col items-center gap-4 sm:gap-6 max-w-sm mx-auto w-full pb-2 sm:pb-6">
             <div className="flex items-center justify-center gap-6">
               <button
                 type="button"

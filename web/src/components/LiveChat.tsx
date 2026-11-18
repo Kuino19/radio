@@ -248,7 +248,7 @@ export function LiveChat({
   }
 
   return (
-    <div className="flex flex-col h-[520px] rounded-2xl border border-zinc-800 bg-zinc-900/70 backdrop-blur-xl shadow-xl overflow-hidden">
+    <div className="flex flex-col h-[460px] sm:h-[520px] rounded-2xl border border-zinc-800 bg-zinc-900/70 backdrop-blur-xl shadow-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 bg-zinc-950/60">
         <div className="flex items-center gap-2">
@@ -379,14 +379,14 @@ export function LiveChat({
       <div className="border-t border-zinc-800 p-3 bg-zinc-950/90">
         {!effectiveDisplayName ? (
           <div className="flex items-center justify-between gap-2 p-1 text-xs">
-            <span className="text-zinc-400">Want to join the conversation?</span>
+            <span className="text-zinc-400">Join the live chat:</span>
             <button
               type="button"
               onClick={() => setShowGuestModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 font-bold text-white hover:bg-red-500 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-2 font-bold text-white hover:bg-red-500 active:scale-95 transition-all shadow-sm touch-manipulation"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Set Name to Chat
+              Set Name
             </button>
           </div>
         ) : (
@@ -403,12 +403,12 @@ export function LiveChat({
                     ? 'Chat disabled (blocked)'
                     : `Message as ${effectiveDisplayName}...`
                 }
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:opacity-50 transition-colors"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:opacity-50 transition-colors"
               />
               <button
                 type="submit"
                 disabled={isBlocked || sending || !inputText.trim() || cooldown > 0}
-                className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 shadow-md shadow-red-950/40"
+                className="flex h-10 w-10 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-red-600 text-white hover:bg-red-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 shadow-md shadow-red-950/40 touch-manipulation"
                 title={cooldown > 0 ? `Wait ${cooldown}s` : 'Send message'}
               >
                 {sending ? (

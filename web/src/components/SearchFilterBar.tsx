@@ -107,11 +107,11 @@ export function SearchFilterBar() {
       </div>
 
       {/* Content Type Filter: All / Live Broadcasts / Series / Episodes */}
-      <div className="flex items-center gap-2 text-xs text-[#A39B91] pt-1 border-t border-[#2A2724]">
-        <span className="flex items-center gap-1 font-medium">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-[#A39B91] pt-3 border-t border-[#2A2724]">
+        <span className="flex items-center gap-1 font-medium shrink-0">
           <Filter className="w-3.5 h-3.5 text-[#F2B544]" /> Filter by:
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
           {[
             { id: 'all', label: 'All Content' },
             { id: 'live', label: 'Live Radio' },
@@ -124,7 +124,7 @@ export function SearchFilterBar() {
                 key={t.id}
                 type="button"
                 onClick={() => updateFilters({ type: t.id })}
-                className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                className={`min-h-9 px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
                   isSelected
                     ? 'bg-[#0E0D0C] text-[#F4EFE8] font-bold border border-[#2A2724]'
                     : 'text-[#A39B91] hover:text-[#F4EFE8]'

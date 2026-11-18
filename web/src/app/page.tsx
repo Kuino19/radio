@@ -78,12 +78,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const isHeroLive = !!(heroChannel && heroChannel.is_live)
 
   return (
-    <div className="flex flex-col gap-14 px-4 py-6 sm:px-6 sm:py-10 max-w-6xl mx-auto">
+    <div className="flex flex-col gap-9 sm:gap-14 px-4 py-5 sm:px-6 sm:py-10 max-w-6xl mx-auto">
       {/* Top Section Header: Live now · X on air */}
-      <section id="live-now" className="space-y-6">
-        <div className="flex items-center justify-between border-b border-[#2A2724] pb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="font-display font-bold text-2xl sm:text-3xl text-[#F4EFE8] tracking-tight">
+      <section id="live-now" className="space-y-4 sm:space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2A2724] pb-3 sm:pb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h1 className="font-display font-bold text-xl sm:text-3xl text-[#F4EFE8] tracking-tight">
               {totalOnAir > 0 ? 'Live now' : 'Featured Stations'}
             </h1>
             <span className="font-mono text-xs text-[#A39B91] bg-[#1A1816] px-2.5 py-0.5 rounded-full border border-[#2A2724]">
@@ -93,7 +93,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <Link
             href="/explore"
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-[#F2B544] hover:underline"
+            className="inline-flex min-h-10 items-center gap-1.5 text-xs font-mono text-[#F2B544] hover:underline"
           >
             <span>Explore all stations</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -101,12 +101,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
 
         {/* Live / Featured Broadcast Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
           {/* Hero Featured Live Broadcast or Featured Station */}
           {heroChannel ? (
-            <div className="md:col-span-2 rounded-3xl bg-[#F2B544] text-[#0E0D0C] p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden shadow-xl min-h-[300px]">
+            <div className="md:col-span-2 rounded-3xl bg-[#F2B544] text-[#0E0D0C] p-5 sm:p-8 flex flex-col justify-between relative overflow-hidden shadow-xl min-h-[250px] sm:min-h-[300px]">
               {/* Background waveform bars */}
-              <div className="absolute right-6 top-8 bottom-8 flex items-end gap-1.5 opacity-25 pointer-events-none">
+              <div className="hidden sm:flex absolute right-6 top-8 bottom-8 items-end gap-1.5 opacity-25 pointer-events-none">
                 <span className="w-2.5 bg-[#0E0D0C] rounded-full h-12 animate-radio-bar" style={{ animationDelay: '0.1s' }} />
                 <span className="w-2.5 bg-[#0E0D0C] rounded-full h-24 animate-radio-bar" style={{ animationDelay: '0.4s' }} />
                 <span className="w-2.5 bg-[#0E0D0C] rounded-full h-16 animate-radio-bar" style={{ animationDelay: '0.2s' }} />
@@ -115,7 +115,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <span className="w-2.5 bg-[#0E0D0C] rounded-full h-28 animate-radio-bar" style={{ animationDelay: '0.5s' }} />
               </div>
 
-              <div className="space-y-4 max-w-md relative z-10">
+              <div className="space-y-3 sm:space-y-4 max-w-md relative z-10">
                 {/* Status Badge */}
                 {isHeroLive ? (
                   <div className="inline-flex items-center gap-2 rounded-full bg-[#0E0D0C] px-3 py-1 shadow-sm">
@@ -138,7 +138,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 )}
 
                 <div>
-                  <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0E0D0C] tracking-tight leading-tight">
+                  <h2 className="font-display font-extrabold text-2xl sm:text-4xl text-[#0E0D0C] tracking-tight leading-tight">
                     {heroChannel.name}
                   </h2>
                   <p className="text-sm sm:text-base font-medium text-[#0E0D0C]/80 mt-1">
@@ -151,10 +151,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </div>
 
               {/* CTAs */}
-              <div className="pt-6 flex items-center gap-3 relative z-10">
+              <div className="pt-5 sm:pt-6 flex flex-wrap items-center gap-2 sm:gap-3 relative z-10">
                 <Link
                   href={`/c/${heroChannel.slug}`}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#0E0D0C] px-6 py-3 text-sm font-bold text-[#F4EFE8] shadow-md hover:bg-[#1A1816] active:scale-95 transition-all"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#0E0D0C] px-5 sm:px-6 py-3 text-sm font-bold text-[#F4EFE8] shadow-md hover:bg-[#1A1816] active:scale-95 transition-all"
                 >
                   <Play className="w-4 h-4 fill-current text-[#F2B544]" />
                   <span>{isHeroLive ? 'Listen Live' : 'View Station'}</span>
@@ -162,7 +162,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
                 <Link
                   href="/explore"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#0E0D0C]/30 bg-transparent px-5 py-3 text-sm font-semibold text-[#0E0D0C] hover:bg-[#0E0D0C]/10 active:scale-95 transition-all"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#0E0D0C]/30 bg-transparent px-4 sm:px-5 py-3 text-sm font-semibold text-[#0E0D0C] hover:bg-[#0E0D0C]/10 active:scale-95 transition-all"
                 >
                   <span>Explore All</span>
                 </Link>
