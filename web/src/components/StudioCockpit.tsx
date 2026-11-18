@@ -45,6 +45,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   const [liveDuration, setLiveDuration] = useState<number>(0)
   const [reconnectCountdown, setReconnectCountdown] = useState<number>(30)
   const [copiedLink, setCopiedLink] = useState(false)
+  const [currentShowId, setCurrentShowId] = useState<string | null>(null)
   const [currentListeners, setCurrentListeners] = useState(channel.current_listeners || 0)
   const [peakListeners, setPeakListeners] = useState(channel.current_listeners || 0)
   const [activeListenerList, setActiveListenerList] = useState<{ id: string; displayName: string; isGuest: boolean }[]>([])
@@ -334,6 +335,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
           }
           setStudioState('on_air')
           setStatusMessage('')
+          if (typeof msg.showId === 'string') setCurrentShowId(msg.showId)
           startMediaRecorder(ws)
         } else if (isError) {
           if (connectTimeout) {
@@ -463,6 +465,7 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
           if (isResumed) {
             if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current)
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+            if (typeof msg.showId === 'string') setCurrentShowId(msg.showId)
             setStudioState('on_air')
             startMediaRecorder(ws)
           }
@@ -503,7 +506,8 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
   }
 
   const handleCopyLink = async () => {
-    const url = typeof window !== 'undefined' ? `${window.location.origin}/c/${channel.slug}` : `https://lisnr.goanitech.com/c/${channel.slug}`
+    const path = currentShowId ? `/live/${currentShowId}` : `/c/${channel.slug}`
+    const url = typeof window !== 'undefined' ? `${window.location.origin}${path}` : `https://lisnr.goanitech.com${path}`
     try {
       await navigator.clipboard.writeText(url)
       setCopiedLink(true)
@@ -639,17 +643,20 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0E0D0C] border border-[#2A2724]">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[11px] font-mono text-[#A39B91] uppercase tracking-wider shrink-0">
-                  Station Link:
+                  {currentShowId ? 'Live Show Link:' : 'Listener Link:'}
                 </span>
                 <span className="font-mono text-xs text-[#F2B544] truncate select-all">
-                  {typeof window !== 'undefined' ? `${window.location.origin}/c/${channel.slug}` : `lisnr.goanitech.com/c/${channel.slug}`}
+                  {currentShowId
+                    ? typeof window !== 'undefined' ? `${window.location.origin}/live/${currentShowId}` : `lisnr.goanitech.com/live/${currentShowId}`
+                    : 'Go live to generate a unique show link'}
                 </span>
               </div>
 
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#2A2724] bg-[#1A1816] px-3.5 py-1.5 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544] transition-colors shrink-0"
+                disabled={!currentShowId}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#2A2724] bg-[#1A1816] px-3.5 py-1.5 text-xs font-semibold text-[#F4EFE8] hover:border-[#F2B544] transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {copiedLink ? <Check className="w-3.5 h-3.5 text-[#3DBE7A]" /> : <Copy className="w-3.5 h-3.5 text-[#F2B544]" />}
                 <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
@@ -861,8 +868,10 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
       <SocialShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
-        title={channel.name}
-        url={typeof window !== 'undefined' ? `${window.location.origin}/c/${channel.slug}` : `https://lisnr.goanitech.com/c/${channel.slug}`}
+        title={showTitle.trim() || `${channel.name} Live`}
+        url={typeof window !== 'undefined'
+          ? `${window.location.origin}${currentShowId ? `/live/${currentShowId}` : `/c/${channel.slug}`}`
+          : `https://lisnr.goanitech.com${currentShowId ? `/live/${currentShowId}` : `/c/${channel.slug}`}`}
       />
     </div>
   )

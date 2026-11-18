@@ -34,6 +34,7 @@ interface AudioPlayerProps {
   userLoggedIn: boolean
   userDisplayName?: string | null
   latestRecording?: Recording | null
+  showSpecific?: boolean
 }
 
 export function AudioPlayer({
@@ -48,6 +49,7 @@ export function AudioPlayer({
   userLoggedIn,
   userDisplayName,
   latestRecording,
+  showSpecific = false,
 }: AudioPlayerProps) {
   const {
     currentTrack,
@@ -95,19 +97,19 @@ export function AudioPlayer({
           .single()
 
         if (data && typeof data.is_live === 'boolean') {
-          if (data.is_live !== currentLive) {
-            setCurrentLive(data.is_live)
-            if (data.is_live) {
-              const { data: latestShow } = await supabase
-                .from('shows')
-                .select('id')
-                .eq('channel_id', channelId)
-                .order('started_at', { ascending: false })
-                .limit(1)
-                .maybeSingle()
-              if (latestShow) setCurrentShowId(latestShow.id)
-            }
+          let isThisShowLive = data.is_live
+          if (data.is_live) {
+            const { data: latestShow } = await supabase
+              .from('shows')
+              .select('id')
+              .eq('channel_id', channelId)
+              .order('started_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+            if (latestShow) setCurrentShowId(latestShow.id)
+            if (showSpecific) isThisShowLive = latestShow?.id === showId
           }
+          setCurrentLive(isThisShowLive)
         }
       } catch {}
     }
@@ -122,7 +124,11 @@ export function AudioPlayer({
         (payload) => {
           const updated = payload.new as { is_live?: boolean }
           if (typeof updated.is_live === 'boolean') {
-            setCurrentLive(updated.is_live)
+            if (showSpecific && updated.is_live) {
+              void checkStatus()
+            } else {
+              setCurrentLive(updated.is_live)
+            }
           }
         }
       )
@@ -132,7 +138,7 @@ export function AudioPlayer({
       clearInterval(interval)
       supabase.removeChannel(sub)
     }
-  }, [channelId, currentLive, supabase])
+  }, [channelId, currentLive, showId, showSpecific, supabase])
 
   const recordingSlug = latestRecording ? `rec-${latestRecording.id}` : null
   const isPlayingLive = currentTrack?.channelSlug === channelSlug && globalIsPlaying && currentTrack?.isLive
@@ -426,7 +432,9 @@ export function AudioPlayer({
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         title={channelName}
-        url={typeof window !== 'undefined' ? `${window.location.origin}/c/${channelSlug}` : `https://radio.goanitech.com/c/${channelSlug}`}
+        url={typeof window !== 'undefined'
+          ? `${window.location.origin}${showSpecific && showId ? `/live/${showId}` : `/c/${channelSlug}`}`
+          : `https://radio.goanitech.com${showSpecific && showId ? `/live/${showId}` : `/c/${channelSlug}`}`}
         subtitle={hostName ? `Live broadcast hosted by ${hostName}` : undefined}
       />
     </>

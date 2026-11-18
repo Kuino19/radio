@@ -42,6 +42,7 @@ export function GlobalBottomPlayer() {
   if (
     !currentTrack ||
     pathname?.startsWith('/c/') ||
+    pathname?.startsWith('/live/') ||
     pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/studio') ||
     pathname?.startsWith('/embed')

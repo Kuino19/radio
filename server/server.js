@@ -619,9 +619,12 @@ wss.on('connection', (ws, req) => {
             })
             .select()
             .single()
-          if (!showErr) show = newShow
+          if (showErr || !newShow?.id) throw showErr || new Error('Show row was not returned')
+          show = newShow
         } catch (sErr) {
-          console.warn('[DB] Show insert warning:', sErr.message)
+          console.error('[DB] Could not create show:', sErr.message)
+          ws.send(JSON.stringify({ type: 'error', message: 'Could not create a unique listener link. Please try again.' }))
+          return ws.close(4005, 'Show creation failed')
         }
 
         // Mark channel as live
