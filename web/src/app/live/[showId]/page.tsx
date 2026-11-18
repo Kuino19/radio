@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Radio, Users } from 'lucide-react'
 import { AudioPlayer } from '@/components/AudioPlayer'
+import { NativeShowAudio } from '@/components/NativeShowAudio'
 import { createClient } from '@/lib/supabase/server'
 import type { Channel, Profile, Recording, Show } from '@/types/database'
 
@@ -73,20 +74,31 @@ export default async function LiveShowPage({ params }: LiveShowPageProps) {
           </div>
         </div>
 
-        <AudioPlayer
-          channelId={channel.id}
-          showId={show.id}
-          streamUrl={`${streamBaseUrl}/${channel.slug}`}
-          isLive={isLive}
-          channelName={show.title}
-          channelSlug={`live-${show.id}`}
-          coverUrl={channel.cover_url}
-          hostName={host?.display_name}
-          userLoggedIn={!!user}
-          userDisplayName={user?.email?.split('@')[0] || null}
-          latestRecording={recording}
-          showSpecific
-        />
+        <div className="hidden md:block">
+          <AudioPlayer
+            channelId={channel.id}
+            showId={show.id}
+            streamUrl={`${streamBaseUrl}/${channel.slug}`}
+            isLive={isLive}
+            channelName={show.title}
+            channelSlug={`live-${show.id}`}
+            coverUrl={channel.cover_url}
+            hostName={host?.display_name}
+            userLoggedIn={!!user}
+            userDisplayName={user?.email?.split('@')[0] || null}
+            latestRecording={recording}
+            showSpecific
+          />
+        </div>
+        <div className="md:hidden">
+          <NativeShowAudio
+            channelId={channel.id}
+            showId={show.id}
+            isLive={isLive}
+            streamUrl={`${streamBaseUrl}/${channel.slug}`}
+            recordingUrl={recording?.audio_url}
+          />
+        </div>
       </section>
     </main>
   )
