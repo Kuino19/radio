@@ -209,6 +209,44 @@ export function StudioCockpit({ channel, onReturnToDashboard }: StudioCockpitPro
     }
   }, [studioState])
 
+  // Keep the studio's ON AIR indicator in sync with the streaming process,
+  // rather than leaving it on after the browser WebSocket has silently closed.
+  useEffect(() => {
+    if (studioState !== 'on_air') return
+
+    let isCurrent = true
+    const checkBroadcastStatus = async () => {
+      try {
+        const streamBase = (process.env.NEXT_PUBLIC_STREAM_BASE_URL || 'https://radio.goanitech.com').replace(/\/+$/, '')
+        const response = await fetch(`${streamBase}/api/live-status/${encodeURIComponent(channel.slug)}`, { cache: 'no-store' })
+        if (!response.ok) return
+        const status = await response.json() as { isLive?: boolean; showId?: string | null }
+        if (!isCurrent || (status.isLive && status.showId === currentShowId)) return
+
+        broadcastStartedRef.current = false
+        reconnectingRef.current = false
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          try { mediaRecorderRef.current.stop() } catch {}
+        }
+        if (socketRef.current) {
+          try { socketRef.current.close() } catch {}
+          socketRef.current = null
+        }
+        setStudioState('ended')
+        setMicError('The streaming server has ended this show. Start a new show to go live again.')
+      } catch {
+        // A temporary status-check failure should not interrupt the broadcast.
+      }
+    }
+
+    void checkBroadcastStatus()
+    const statusInterval = window.setInterval(checkBroadcastStatus, 5000)
+    return () => {
+      isCurrent = false
+      window.clearInterval(statusInterval)
+    }
+  }, [channel.slug, currentShowId, studioState])
+
   // Poll audience stats
   useEffect(() => {
     const fetchLiveStats = async () => {
