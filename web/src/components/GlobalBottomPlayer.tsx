@@ -50,8 +50,8 @@ export function GlobalBottomPlayer() {
 
   return (
     <>
-      {/* 1. Global Persistent Sticky Bottom Bar — above MobileNav (pb-[calc(env(safe-area-inset-bottom)+60px)] on body) */}
-      <aside className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 z-30 border-t border-[#2A2724] bg-[#1A1816]/95 backdrop-blur-xl px-3 sm:px-4 py-2 sm:py-2.5 transition-all duration-300 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+      {/* Global persistent player; the mobile navigation bar has been removed. */}
+      <aside className="fixed bottom-[env(safe-area-inset-bottom)] left-0 right-0 z-30 border-t border-[#2A2724] bg-[#1A1816]/95 backdrop-blur-xl px-3 sm:px-4 py-2 sm:py-2.5 transition-all duration-300 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 sm:gap-6">
           {/* Station Artwork & Title */}
           <div
