@@ -114,10 +114,15 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
                       </span>
                     )}
 
-                    <span className="font-mono text-xs text-[#A39B91] flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5 text-[#F2B544]" />
-                      {ch.current_listeners || 0}
-                    </span>
+                    {ch.is_live && (
+                      <span
+                        aria-label={`${ch.current_listeners ?? 0} ${ch.current_listeners === 1 ? 'listener' : 'listeners'} listening`}
+                        className="font-mono text-xs text-[#A39B91] flex items-center gap-1"
+                      >
+                        <Users className="w-3.5 h-3.5 text-[#F2B544]" aria-hidden="true" />
+                        {ch.current_listeners ?? 0} listening
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3">

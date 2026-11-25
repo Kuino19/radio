@@ -39,6 +39,8 @@ html {
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
+  scroll-behavior: smooth;
+  scrollbar-color: var(--border) var(--bg);
 }
 
 body {
@@ -50,6 +52,33 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 .font-display {

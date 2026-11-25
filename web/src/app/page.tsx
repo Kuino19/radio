@@ -114,7 +114,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     <span className="text-[11px] font-bold tracking-wider text-[#FF4A3D]">LIVE</span>
                     <span className="text-[#A39B91] text-[11px]">•</span>
                     <span className="font-mono text-[11px] font-medium text-[#F4EFE8]">
-                      {heroChannel.current_listeners || 1} listening
+                      {heroChannel.current_listeners ?? 0} listening
                     </span>
                   </div>
                 ) : (

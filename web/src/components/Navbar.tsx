@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, Compass, Bookmark } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { BrandWordmark } from '@/components/BrandWordmark'
 
@@ -29,30 +29,34 @@ export async function Navbar() {
         <div className="flex items-center gap-6">
           <BrandWordmark size="md" />
 
-          <nav className="hidden md:flex items-center gap-6 text-sm">
+          <nav aria-label="Main navigation" className="flex items-center gap-1 sm:gap-2 md:gap-6 text-sm">
             <Link
               href="/explore"
-              className="text-[#F4EFE8] font-medium hover:text-[#F2B544] transition-colors"
+              aria-label="Explore stations"
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-2.5 sm:px-3 text-[#F4EFE8] font-medium hover:bg-[#1A1816] hover:text-[#F2B544] transition-colors"
             >
-              Explore
+              <Compass className="h-4 w-4 md:hidden" aria-hidden="true" />
+              <span className="hidden sm:inline">Explore</span>
             </Link>
             <Link
               href="/library"
-              className="text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
+              aria-label="Your library"
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-2.5 sm:px-3 text-[#A39B91] hover:bg-[#1A1816] hover:text-[#F4EFE8] transition-colors"
             >
-              Library
+              <Bookmark className="h-4 w-4 md:hidden" aria-hidden="true" />
+              <span className="hidden sm:inline">Library</span>
             </Link>
             {user ? (
               <Link
                 href="/dashboard"
-                className="text-[#F4EFE8] font-bold text-[#F2B544] hover:brightness-110 transition-colors flex items-center gap-1.5"
+                className="hidden md:flex text-[#F4EFE8] font-bold text-[#F2B544] hover:brightness-110 transition-colors items-center gap-1.5"
               >
                 <span>Dashboard</span>
               </Link>
             ) : (
               <Link
                 href="/#for-hosts"
-                className="text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
+                className="hidden sm:inline-flex text-[#A39B91] hover:text-[#F4EFE8] transition-colors"
               >
                 For hosts
               </Link>
